@@ -93,7 +93,14 @@ class Client {
             this.airPurifier[key] = info[key];
           }
         });
-        this.cache.set('unit_info', { data: this.airPurifier });
+
+        const data = this.cache.get('unit_info') as Record<string, unknown>;
+        if (data) {
+          this.cache.set('unit_info', { data: {
+            ...data,
+            ctrl_info: this.airPurifier,
+          }});
+        }
       } else {
         throw new Error('Missing accessToken');
       }
