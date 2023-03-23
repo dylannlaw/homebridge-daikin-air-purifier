@@ -45,7 +45,7 @@ class DaikinAirPurifier implements AccessoryPlugin {
     this.humiditySensor = new HumiditySensor(this.client, hap, log, config, api);
     this.temperatureSensor = new TemperatureSensor(this.client, hap, log, config, api);
 
-    log.info('Switch finished initializing!');
+    log.info('Daikin Air Purifier is initialized.');
     this.timer = setTimeout(this.refresh.bind(this), 15000);
     this.refresh();
   }
