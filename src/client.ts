@@ -17,7 +17,7 @@ class Client {
   private unitStatus: UnitStatus;
 
   constructor(log: Logging, config: AccessoryConfig) {
-    this.cache = new NodeCache({ stdTTL: 20 });
+    this.cache = new NodeCache({ stdTTL: config.cacheDuration || 60 });
     this.config = config;
     this.log = log;
     this.airPurifier = { pow: PowerStatus.Off, mode: Mode.AutoFan, airvol: FanSpeed.Off, humd: HumidityLevel.Off };

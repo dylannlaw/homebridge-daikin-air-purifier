@@ -23,5 +23,6 @@ However, it added complexity due to authorization is needed.
     "uuid": "",
     "clientSecret": "",
     "terminalId": "",
+    "cacheDuration": 60,
     "port": "30050"
 }

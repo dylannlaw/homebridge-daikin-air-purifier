@@ -59,6 +59,13 @@
         "type": "string",
         "placeholder": "MCK70W"
       },
+      "cacheDuration": {
+        "title": "Cache Duration (seconds)",
+        "type": "integer",
+        "required": true,
+        "default": 60,
+        "minimum": 15
+      },
       "serial": {
         "title": "Serial",
         "type": "string",
