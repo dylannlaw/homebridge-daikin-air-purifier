@@ -96,7 +96,7 @@ class AirPurifier extends BaseAirPurifier {
       speed = FanSpeed.Quiet;
     }
     await this.client.setControlInfo({
-      mode: airPurifier.mode,
+      mode: Mode.AutoFan,
       humd: airPurifier.humd,
       pow: airPurifier.pow,
       airvol: speed,

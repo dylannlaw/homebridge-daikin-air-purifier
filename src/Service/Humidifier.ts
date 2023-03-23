@@ -65,13 +65,15 @@ class Humidifier extends BaseHumidifier {
 
   async getTargetHumidifierDehumidifierState() {
     const { airPurifier } = await this.client.getUnitInfo();
-    if (airPurifier.humd === HumidityLevel.VeryHigh) {
-      return 0;
-    }  // Auto
-    if (airPurifier.humd === HumidityLevel.Off) {
-      return 1;
-    } // Dehumidifying
-    return 2;    // humidifying
+    if (
+      airPurifier.pow === PowerStatus.On &&
+      airPurifier.mode === Mode.Smart &&
+      airPurifier.airvol === FanSpeed.Off &&
+      airPurifier.humd === HumidityLevel.VeryHigh
+    ) {
+      return this.api.hap.Characteristic.TargetHumidifierDehumidifierState.HUMIDIFIER_OR_DEHUMIDIFIER;
+    }
+    return this.api.hap.Characteristic.TargetHumidifierDehumidifierState.HUMIDIFIER;
   }
 
   async setTargetHumidifierDehumidifierState(state) {
@@ -84,7 +86,7 @@ class Humidifier extends BaseHumidifier {
         humd: HumidityLevel.VeryHigh,
       });
     } else if (state === this.api.hap.Characteristic.TargetHumidifierDehumidifierState.HUMIDIFIER ||
-        state === this.api.hap.Characteristic.TargetHumidifierDehumidifierState.HUMIDIFIER_OR_DEHUMIDIFIER
+        state === this.api.hap.Characteristic.TargetHumidifierDehumidifierState.DEHUMIDIFIER
     ) {
       await this.client.setControlInfo({
         mode: airPurifier.mode,
