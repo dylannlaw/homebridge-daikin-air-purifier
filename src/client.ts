@@ -46,10 +46,11 @@ class Client {
       let info;
       if ((typeof result?.data) === 'string') {
         info = this.parseUnitInfo(result?.data as string);
-        this.cache.set('unit_info', { data: info });
       } else {
         info = result.data;
       }
+
+      this.cache.set('unit_info', { data: info });
 
       return {
         airPurifier: info?.ctrl_info,
