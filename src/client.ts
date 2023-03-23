@@ -32,7 +32,6 @@ class Client {
 
     this.login();
     this.timer = setTimeout(this.refreshAccessToken.bind(this), 30 * 1000 * 60);
-    // this.refreshAccessToken();
   }
 
   async getUnitInfo(): Promise<{ airPurifier: AirPurifier; sensorInfo: SensorInfo; unitStatus: UnitStatus }> {

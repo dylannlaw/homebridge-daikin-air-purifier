@@ -1,5 +1,5 @@
 {
-  "pluginAlias": "HomebridgeDaikinAirPurifer",
+  "pluginAlias": "DaikinAirPurifer",
   "pluginType": "accessory",
   "singular": true,
   "schema": {
