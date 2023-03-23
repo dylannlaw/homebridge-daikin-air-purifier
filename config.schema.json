@@ -1,6 +1,6 @@
 {
-  "pluginAlias": "ExampleHomebridgePlugin",
-  "pluginType": "platform",
+  "pluginAlias": "HomebridgeDaikinAirPurifer",
+  "pluginType": "accessory",
   "singular": true,
   "schema": {
     "type": "object",
@@ -9,7 +9,60 @@
         "title": "Name",
         "type": "string",
         "required": true,
-        "default": "Example Dynamic Platform"
+        "default": "DaikinAirPurifier"
+      },
+      "accessory": {
+        "title": "Accessory",
+        "type": "string",
+        "required": true,
+        "default": "DaikinAirPurifier"
+      },
+      "host": {
+        "title": "Local IP of Daikin Air Purifier",
+        "type": "string",
+        "required": true,
+        "format": "ipv4",
+        "placeholder": "192.168.1.1"
+      },
+      "code": {
+        "title": "Authorization Code",
+        "type": "string",
+        "required": true
+      },
+      "uuid": {
+        "title": "Cognito UUID",
+        "type": "string",
+        "required": true
+      },
+      "clientId": {
+        "title": "Client ID",
+        "type": "string",
+        "required": true
+      },
+      "clientSecret": {
+        "title": "Client Secret",
+        "type": "string",
+        "required": true
+      },
+      "terminalId": {
+        "title": "Terminal ID",
+        "type": "string",
+        "required": true
+      },
+      "port": {
+        "title": "Port",
+        "type": "string",
+        "required": true
+      },
+      "model": {
+        "title": "Model",
+        "type": "string",
+        "placeholder": "MCK70W"
+      },
+      "serial": {
+        "title": "Serial",
+        "type": "string",
+        "placeholder": "123-456-789"
       }
     }
   }
