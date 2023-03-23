@@ -11,7 +11,7 @@ However, it added complexity due to authorization is needed.
 
 
 ## Configuration Example
-```
+```json
 {
     "accessory": "DaikinAirPurifier",
     "name": "DaikinAirPurifer",
