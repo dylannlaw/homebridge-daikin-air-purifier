@@ -91,7 +91,7 @@ class Humidifier extends BaseHumidifier {
       await this.client.setControlInfo({
         mode: airPurifier.mode,
         airvol: airPurifier.airvol,
-        pow: airPurifier.pow,
+        pow: PowerStatus.On,
         humd: HumidityLevel.Standard,
       });
     }

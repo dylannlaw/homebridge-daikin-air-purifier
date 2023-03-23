@@ -41,7 +41,16 @@ class AirPurifier extends BaseAirPurifier {
   }
 
   async setActive(active) {
-    await this.client.setControlInfo({ pow: active });
+    if (active === this.api.hap.Characteristic.Active.ACTIVE) {
+      await this.client.setControlInfo({
+        pow: PowerStatus.On,
+        mode: Mode.Smart,
+        airvol: FanSpeed.Off,
+        humd: HumidityLevel.VeryHigh,
+      });
+    } else {
+      await this.client.setControlInfo({ pow: PowerStatus.Off });
+    }
   }
 
   async getCurrentAirPurifierState() {
