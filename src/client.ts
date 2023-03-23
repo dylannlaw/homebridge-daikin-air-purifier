@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { AccessoryConfig, Logging } from 'homebridge';
 import NodeCache from 'node-cache';
 import { DustLevel, FanSpeed, HumidityLevel, Mode, OdorLevel, PM2Level, PowerStatus } from './constant';
@@ -59,7 +59,7 @@ class Client {
       };
 
     } catch (error) {
-      this.log.error(error as string);
+      this.log.error(`[GET] http://${this.config.host}/cleaner/get_unit_info`, (error as AxiosError)?.message);
 
       return {
         airPurifier: this.airPurifier,
@@ -105,24 +105,28 @@ class Client {
         throw new Error('Missing accessToken');
       }
     } catch (error) {
-      this.log.error(error as string);
+      this.log.error('[GET] https://api.daikinsmartdb.jp/cleaner/set_control_info', (error as AxiosError)?.message);
     }
   }
 
   async refreshAccessToken() {
-    if (this.refreshToken || this.config.refreshToken) {
-      if (this.timer) {
-        clearTimeout(this.timer);
+    try {
+      if (this.refreshToken || this.config.refreshToken) {
+        if (this.timer) {
+          clearTimeout(this.timer);
+        }
+        this.timer = null;
+        this.log.debug('[POST] https://api.daikinsmartdb.jp/premise/dsiot/token', new Date());
+        const result = await axios.post<RefreshToken>('https://api.daikinsmartdb.jp/premise/dsiot/token', {
+          grant_type: 'refresh_token',
+          refresh_token: this.refreshToken ?? this.config.refreshToken,
+        });
+        this.accessToken = result.data.access_token;
+        this.refreshToken = result.data.refresh_token;
+        this.timer = setTimeout(this.refreshAccessToken.bind(this), 30 * 1000 * 60);
       }
-      this.timer = null;
-      this.log.debug('[POST] https://api.daikinsmartdb.jp/premise/dsiot/token', new Date());
-      const result = await axios.post<RefreshToken>('https://api.daikinsmartdb.jp/premise/dsiot/token', {
-        grant_type: 'refresh_token',
-        refresh_token: this.refreshToken ?? this.config.refreshToken,
-      });
-      this.accessToken = result.data.access_token;
-      this.refreshToken = result.data.refresh_token;
-      this.timer = setTimeout(this.refreshAccessToken.bind(this), 30 * 1000 * 60);
+    } catch (error) {
+      this.log.error('[POST] https://api.daikinsmartdb.jp/premise/dsiot/token', (error as AxiosError)?.message);
     }
   }
 
@@ -139,7 +143,7 @@ class Client {
       this.accessToken = result.data.access_token;
       this.refreshToken = result.data.refresh_token;
     } catch (error) {
-      this.log.error(error as string);
+      this.log.error('[POST] https://api.daikinsmartdb.jp/premise/dsiot/login', (error as AxiosError)?.message);
     }
   }
 
