@@ -23,7 +23,13 @@
     "prepublishOnly": "npm run lint && npm run build"
   },
   "keywords": [
-    "homebridge-plugin"
+    "homebridge",
+    "homebridge-plugin",
+    "homekit",
+    "daikin",
+    "air purifier",
+    "humidifier",
+    "MCK70W"
   ],
   "dependencies": {
     "axios": "^0.27.2",
