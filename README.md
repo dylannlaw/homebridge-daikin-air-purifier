@@ -26,3 +26,8 @@ However, it added complexity due to authorization is needed.
     "cacheDuration": 60,
     "port": "30050"
 }
+```
+
+## Changelog
+
+See [CHANGELOG](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/CHANGELOG.md).
