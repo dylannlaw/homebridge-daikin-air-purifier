@@ -1,5 +1,5 @@
 {
-  "pluginAlias": "DaikinAirPurifer",
+  "pluginAlias": "DaikinAirPurifier",
   "pluginType": "accessory",
   "singular": true,
   "schema": {

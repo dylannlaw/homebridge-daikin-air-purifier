@@ -1,2 +1,2 @@
-export const PLATFORM_NAME = 'DaikinAirPurifer';
-export const PLUGIN_NAME = 'homebridge-daikin-air-purifer';
+export const PLATFORM_NAME = 'DaikinAirPurifier';
+export const PLUGIN_NAME = 'homebridge-daikin-air-purifier';
