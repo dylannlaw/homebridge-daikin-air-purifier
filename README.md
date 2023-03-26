@@ -28,6 +28,23 @@ However, it added complexity due to authorization is needed.
 }
 ```
 
+## Steps to get certain configuration value
+Knowledge of proxy is needed in order to get certain values while accessing [Daikin Smart App](https://apps.apple.com/app/id564109247).
+
+`code` - It can be obtained from `https://api.daikinsmartdb.jp/premise/dsiot/login` request body during login.
+
+`clientId` - It can be obtained from `https://api.daikinsmartdb.jp/premise/dsiot/login` request body during login.
+
+`uuid` - It can be obtained from `https://api.daikinsmartdb.jp/premise/dsiot/login` request body during login.
+
+`clientSecret` - It can be obtained from `https://api.daikinsmartdb.jp/premise/dsiot/login` request body during login.
+
+`terminalId` - It can be obtained from `https://api.daikinsmartdb.jp/cleaner/set_control_info` query parameter when adjusting the air purifier control in the app.
+
+`port` - It can be obtained from `https://api.daikinsmartdb.jp/cleaner/set_control_info` query parameter when adjusting the air purifier control in the app.
+
+
+
 ## Changelog
 
 See [CHANGELOG](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/CHANGELOG.md).
