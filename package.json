@@ -2,8 +2,8 @@
   "displayName": "Homebridge Daikin Air Purifier",
   "name": "@dylannlaw/homebridge-daikin-air-purifier",
   "type": "module",
-  "version": "0.1.0",
-  "description": "Homebridge plugin for Daikin Air Purifier",
+  "version": "0.1.1",
+  "description": "Homebridge plugin for Daikin Air Purifier (read-only: sensors and status)",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",

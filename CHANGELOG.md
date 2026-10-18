@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.1](https://github.com/dylannlaw/homebridge-daikin-air-purifier/compare/v0.1.0...v0.1.1) (2026-10-18)
+
+
+### Documentation
+
+* the plugin is documented as read-only: it shows sensors and status, but controlling the purifier isn't currently supported because the Daikin cloud API can't be logged in to from the plugin
+* cloud control settings are marked as experimental and unsupported in the README and the config UI
+
+0.1.0 was tagged on GitHub but never published to npm; 0.1.1 is the first npm release with the changes below.
+
 ## [0.1.0](https://github.com/dylannlaw/homebridge-daikin-air-purifier/compare/v0.0.6...v0.1.0) (2026-10-18)
 
 

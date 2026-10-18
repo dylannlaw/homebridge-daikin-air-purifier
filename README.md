@@ -3,27 +3,27 @@
 
 This is a Homebridge plugin built for Daikin Air Purifier (based on MCK70W model). 
 
-After going through multiple plugins that are available, some of them are having issue with hitting api rate limit due to frequent API request and all of them do not support changing the air purifier setting due to deprecation of the localhost API.
+> **This plugin is currently read-only.** It shows the purifier's sensors and status in HomeKit, but it can't control the purifier.
 
-I have added 60 seconds cache to prevent frequent API request and also added support of changing air purifier setting by calling `https://api.daikinsmartdb.jp`. 
+## What works
 
-However, it added complexity due to authorization is needed.
+| Feature | Supported |
+|---|---|
+| Temperature, humidity and air quality (PM2.5, dust, odour) sensors | ✅ |
+| Live status of power, mode, fan speed and humidifier | ✅ |
+| Control from HomeKit (on/off, fan speed, humidifier) | ❌ Not currently supported |
 
+All you need is the purifier's local IP address (`host`). Status is read on your local network, with no account or cloud access.
 
-## Modes
+## Why control isn't supported
+Newer purifier firmware (for example `3_15_0`) has removed the local control endpoint (`/cleaner/set_control_info` returns 404), and it doesn't support Daikin's newer local DSIOT protocol either. The only way left to control it is through the Daikin cloud (`https://api.daikinsmartdb.jp`), which is what the Daikin Smart App uses.
 
-| Mode | What you need | What works |
-|---|---|---|
-| **Local-only** | `host` only | Sensors (temperature, humidity, air quality) and live status of power, mode, fan speed and humidifier. Controls are shown read-only in HomeKit. |
-| **Local + cloud control** | `host` plus the Daikin cloud settings | Everything above, plus control: on/off, fan speed, humidifier |
+That cloud API can't currently be logged in to from the plugin. Its login takes a single-use authorization code that can only be captured from the Daikin Smart App with an HTTPS proxy, and there's no known way to log in with your email and password. If control becomes possible, it will be added back as a supported feature.
 
-Newer purifier firmware (for example `3_15_0`) no longer accepts control commands on the local network, so control has to go through the Daikin cloud (`https://api.daikinsmartdb.jp`). Reading status always uses the local network.
-
-If the cloud credentials stop working, the plugin keeps showing sensors and status. Only control stops, and the log explains how to fix it.
+The plugin still contains experimental cloud control code. See [Experimental: cloud control](#experimental-cloud-control) if you want to try it, but it isn't supported.
 
 ## Configuration Example
 
-Local-only:
 ```json
 {
     "accessory": "DaikinAirPurifier",
@@ -33,7 +33,14 @@ Local-only:
 }
 ```
 
-Local + cloud control:
+Give the purifier a fixed IP address in your router so `host` doesn't change. `cacheDuration` is how often, in seconds, the purifier is polled (minimum 15).
+
+In HomeKit, the control tiles are shown read-only.
+
+## Experimental: cloud control
+
+**Not supported.** It needs values captured from the Daikin Smart App with an HTTPS proxy, and they may stop working at any time. If the cloud credentials fail, the plugin falls back to read-only and keeps showing sensors and status.
+
 ```json
 {
     "accessory": "DaikinAirPurifier",
@@ -51,9 +58,7 @@ Local + cloud control:
 }
 ```
 
-Give the purifier a fixed IP address in your router so `host` doesn't change.
-
-## Getting the cloud settings
+### Getting the cloud settings
 Knowledge of proxy is needed in order to get certain values while accessing [Daikin Smart App](https://apps.apple.com/app/id564109247).
 
 `code` - It can be obtained from `https://api.daikinsmartdb.jp/premise/dsiot/login` request body during login.

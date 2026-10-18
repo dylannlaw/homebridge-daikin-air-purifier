@@ -25,39 +25,39 @@
         "placeholder": "192.168.1.1"
       },
       "code": {
-        "title": "Authorization Code (optional)",
+        "title": "Authorization Code (experimental)",
         "type": "string",
-        "description": "Only needed once. It works a single time; after the first login the plugin saves and renews its own tokens. Put a new code here only if the log asks for one."
+        "description": "Experimental cloud control, not supported. Leave empty: the plugin is read-only. A code works a single time; after the first login the plugin saves and renews its own tokens."
       },
       "refreshToken": {
-        "title": "Refresh Token (optional)",
+        "title": "Refresh Token (experimental)",
         "type": "string",
-        "description": "Use this instead of the authorization code if you have captured a refresh_token from the Daikin Smart App."
+        "description": "Experimental cloud control, not supported. Alternative to the authorization code."
       },
       "uuid": {
         "title": "Cognito UUID",
         "type": "string",
-        "description": "Daikin cloud setting, needed only with an Authorization Code. Leave the cloud settings empty for local-only mode."
+        "description": "Experimental cloud control, not supported. Leave empty."
       },
       "clientId": {
         "title": "Client ID",
         "type": "string",
-        "description": "Daikin cloud setting, needed only with an Authorization Code."
+        "description": "Experimental cloud control, not supported. Leave empty."
       },
       "clientSecret": {
         "title": "Client Secret",
         "type": "string",
-        "description": "Daikin cloud setting, needed only with an Authorization Code."
+        "description": "Experimental cloud control, not supported. Leave empty."
       },
       "terminalId": {
         "title": "Terminal ID",
         "type": "string",
-        "description": "Daikin cloud setting, needed to control the purifier."
+        "description": "Experimental cloud control, not supported. Leave empty."
       },
       "port": {
         "title": "Port",
         "type": "string",
-        "description": "Daikin cloud setting, needed to control the purifier.",
+        "description": "Experimental cloud control, not supported. Leave empty.",
         "placeholder": "30050"
       },
       "model": {
@@ -67,7 +67,7 @@
       },
       "cacheDuration": {
         "title": "Cache Duration (seconds)",
-        "description": "How often the purifier is polled on the local network. Controlling it uses the Daikin cloud API only when you change a setting.",
+        "description": "How often the purifier is polled on the local network.",
         "type": "integer",
         "required": true,
         "default": 60,
