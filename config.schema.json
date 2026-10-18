@@ -24,41 +24,53 @@
         "format": "ipv4",
         "placeholder": "192.168.1.1"
       },
-      "code": {
-        "title": "Authorization Code (experimental)",
+      "username": {
+        "title": "Daikin Account Email",
         "type": "string",
-        "description": "Experimental cloud control, not supported. Leave empty: the plugin is read-only. A code works a single time; after the first login the plugin saves and renews its own tokens."
+        "description": "The email you sign in to the Daikin Smart App with. Needed to control the purifier; leave empty for read-only."
       },
-      "refreshToken": {
-        "title": "Refresh Token (experimental)",
+      "password": {
+        "title": "Daikin Account Password",
         "type": "string",
-        "description": "Experimental cloud control, not supported. Alternative to the authorization code."
-      },
-      "uuid": {
-        "title": "Cognito UUID",
-        "type": "string",
-        "description": "Experimental cloud control, not supported. Leave empty."
-      },
-      "clientId": {
-        "title": "Client ID",
-        "type": "string",
-        "description": "Experimental cloud control, not supported. Leave empty."
+        "x-schema-form": {
+          "type": "password"
+        }
       },
       "clientSecret": {
         "title": "Client Secret",
         "type": "string",
-        "description": "Experimental cloud control, not supported. Leave empty."
+        "description": "Needed to control the purifier. Captured once from the Daikin Smart App's https://api.daikinsmartdb.jp/premise/dsiot/login request body."
       },
       "terminalId": {
         "title": "Terminal ID",
         "type": "string",
-        "description": "Experimental cloud control, not supported. Leave empty."
+        "description": "Needed to control the purifier. Captured once from the Daikin Smart App's https://api.daikinsmartdb.jp/cleaner/set_control_info request."
       },
       "port": {
         "title": "Port",
         "type": "string",
-        "description": "Experimental cloud control, not supported. Leave empty.",
+        "description": "Needed to control the purifier. Usually 30050; it is also shown as port= at http://<purifier IP>/common/basic_info.",
         "placeholder": "30050"
+      },
+      "clientId": {
+        "title": "Client ID (advanced)",
+        "type": "string",
+        "description": "Leave empty to use the Daikin Smart App's client ID."
+      },
+      "uuid": {
+        "title": "App UUID (advanced)",
+        "type": "string",
+        "description": "Leave empty to have the plugin generate one."
+      },
+      "code": {
+        "title": "Authorization Code (advanced)",
+        "type": "string",
+        "description": "Alternative to email and password: a code captured from the Daikin Smart App. It works a single time."
+      },
+      "refreshToken": {
+        "title": "Refresh Token (advanced)",
+        "type": "string",
+        "description": "Alternative to email and password: a refresh_token captured from the Daikin Smart App."
       },
       "model": {
         "title": "Model",

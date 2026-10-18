@@ -30,4 +30,14 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['error', { 'caughtErrors': 'none' }],
     },
   },
+  {
+    files: ['test/**/*.mjs'],
+    languageOptions: {
+      globals: { URL: 'readonly', setImmediate: 'readonly', process: 'readonly' },
+    },
+    rules: {
+      // Test tables read better on one line.
+      'max-len': ['warn', 160],
+    },
+  },
 );

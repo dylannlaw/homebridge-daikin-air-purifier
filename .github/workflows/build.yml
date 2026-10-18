@@ -1,31 +1,105 @@
-name: Build and Lint
+name: Build, Test and Release
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+    tags-ignore: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  build:
+  test:
+    name: Test (Node.js ${{ matrix.node-version }})
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
-        # the Node.js versions to build on
-        node-version: [12.x, 13.x, 14.x, 15.x, 16.x]
+        # The Node.js versions in package.json "engines".
+        node-version: [22.x, 24.x, 26.x]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v7
 
-      - name: Use Node.js ${{ matrix.node-version }} 
-        uses: actions/setup-node@v2
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node-version }}
+          cache: npm
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Lint the project
+      - name: Lint
         run: npm run lint
 
-      - name: Build the project
-        run: npm run build
+      - name: Build and test
+        run: npm run test:coverage
+
+  # Publishes to npm when package.json has a version that isn't on npm yet, after every test job has passed.
+  release:
+    name: Publish to npm
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    concurrency: release
+
+    permissions:
+      contents: write # push the version tag
+      id-token: write # npm trusted publishing and provenance
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Use Node.js 24.x
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.x
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Check whether this version is already on npm
+        id: version
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if npm view "$NAME@$VERSION" version > /dev/null 2>&1; then
+            echo "$NAME@$VERSION is already on npm, nothing to publish."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "$NAME@$VERSION is not on npm yet, publishing."
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install dependencies
+        if: steps.version.outputs.publish == 'true'
+        run: npm ci
+
+      # Trusted publishing (no token) needs npm 11.5.1 or newer.
+      - name: Update npm
+        if: steps.version.outputs.publish == 'true'
+        run: npm install -g npm@latest
+
+      # prepublishOnly runs lint, build and the tests again on the exact files being published.
+      # Authenticates with npm trusted publishing when it is set up for this repository on npmjs.com,
+      # otherwise with the NPM_TOKEN secret (a granular access token that can bypass 2FA).
+      - name: Publish to npm
+        if: steps.version.outputs.publish == 'true'
+        run: npm publish --access public --provenance
         env:
-          CI: true
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Tag the release
+        if: steps.version.outputs.publish == 'true'
+        run: |
+          TAG="v${{ steps.version.outputs.version }}"
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" > /dev/null; then
+            echo "$TAG already exists."
+          else
+            git tag "$TAG"
+            git push origin "$TAG"
+          fi

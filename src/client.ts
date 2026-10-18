@@ -1,4 +1,5 @@
 import axios, { AxiosError } from 'axios';
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import type { AccessoryConfig, Characteristic, CharacteristicSetHandler, HAP, Logging } from 'homebridge';
@@ -6,6 +7,10 @@ import { DustLevel, FanSpeed, HumidityLevel, Mode, OdorLevel, PM2Level, PowerSta
 import type { AirPurifier, ControlInfo, LoginResponse, RefreshToken, SensorInfo, UnitStatus } from './types.js';
 
 const API_BASE = 'https://api.daikinsmartdb.jp';
+// The Daikin Smart App's login server and the public OAuth client it uses.
+const AUTH_BASE = 'https://prod-dsioti.daikinsmartdb.jp/dsioti/oauth2';
+const DEFAULT_CLIENT_ID = 'i66rposkjbceagakohlncsnus';
+const REDIRECT_URI = 'daikinsmartapp://callback';
 // Wait this long after the last change before sending, so dragging a slider sends one request instead of dozens.
 const SET_DEBOUNCE_MS = 1000;
 // Refresh the token this long before it expires.
@@ -24,6 +29,9 @@ type StoredTokens = {
   code?: string;
   // The config refreshToken these tokens came from, so changing it in the config takes effect.
   configRefreshToken?: string;
+  // Install identifiers sent at login, generated once and kept so every login looks like the same app install.
+  uuid?: string;
+  clientDeviceId?: string;
 };
 
 class Client {
@@ -51,6 +59,8 @@ class Client {
   // State before the queued changes were applied locally, restored if sending them fails.
   private stateBeforeSet: AirPurifier | null = null;
   private authFailureLogged = false;
+  // Set when the email or password is rejected, so the login isn't retried (and the account locked) until restart.
+  private passwordLoginFailed = false;
 
   constructor(log: Logging, config: AccessoryConfig, storagePath: string, hap: HAP) {
     this.config = config;
@@ -73,7 +83,8 @@ class Client {
 
     this.loadTokens();
     this.controlEnabled = Boolean(
-      config.terminalId && config.port && (config.code || config.refreshToken || this.tokens.refreshToken),
+      config.terminalId && config.port &&
+      (this.hasPasswordLogin() || config.code || config.refreshToken || this.tokens.refreshToken),
     );
 
     if (this.controlEnabled) {
@@ -81,9 +92,13 @@ class Client {
     } else {
       this.log.info(
         'Running in local-only mode: sensors and status are read from the purifier, but it cannot be controlled from HomeKit. ' +
-        'Add the Daikin cloud settings (Terminal ID, Port and an Authorization Code or Refresh Token) to enable control.',
+        'To enable control, add your Daikin account email and password, the Client Secret, Terminal ID and Port.',
       );
     }
+  }
+
+  private hasPasswordLogin() {
+    return Boolean(this.config.username && this.config.password && this.config.clientSecret);
   }
 
   /**
@@ -253,19 +268,123 @@ class Client {
     if (this.tokens.refreshToken && (await this.refreshAccessToken())) {
       return true;
     }
+    // With the account email and password the plugin can always log in again, so expired tokens fix themselves.
+    if (this.hasPasswordLogin() && !this.passwordLoginFailed) {
+      return this.loginWithPassword();
+    }
     // An authorization code works only once, so log in with it only if these tokens didn't come from it.
     if (this.config.code && this.config.code !== this.tokens.code) {
-      return this.login();
+      return this.login(this.config.code);
     }
     if (!this.authFailureLogged) {
       this.authFailureLogged = true;
       this.log.error(
         'No valid Daikin API token, so the purifier cannot be controlled. Sensors and status keep working. ' +
-        'To restore control, capture a new "code" (or "refreshToken") from the Daikin Smart App, put it in the plugin config ' +
-        'and restart Homebridge. You only need to do this once: tokens are saved and renewed automatically.',
+        'To restore control, check the Daikin account email, password and Client Secret in the plugin config, then restart Homebridge.',
       );
     }
     return false;
+  }
+
+  /**
+   * Logs in with the Daikin account email and password the same way the Daikin Smart App does: an OAuth
+   * authorization-code login with PKCE on the Daikin login server, then the code is exchanged for tokens.
+   */
+  private async loginWithPassword(): Promise<boolean> {
+    const codeVerifier = crypto.randomBytes(32).toString('base64url');
+    const codeChallenge = crypto.createHash('sha256').update(codeVerifier).digest('base64url');
+    const clientState = crypto.randomBytes(32).toString('base64url');
+    const uuid = this.getInstallUuid();
+
+    try {
+      // 1. Start a login session. The server redirects to its login page, carrying the session state.
+      this.log.debug(`[GET] ${AUTH_BASE}/authorize`);
+      const authorize = await axios.get(`${AUTH_BASE}/authorize`, {
+        timeout: 10000,
+        maxRedirects: 0,
+        validateStatus: (status) => status === 302,
+        params: {
+          response_type: 'code',
+          client_id: this.getClientId(),
+          redirect_uri: REDIRECT_URI,
+          state: clientState,
+          client_device_id: this.getClientDeviceId(),
+          code_challenge: codeChallenge,
+          code_challenge_method: 'S256',
+          display: 'daikinsmartapp',
+          lang: 'en',
+          uuid,
+        },
+      });
+      const serverState = this.getQueryParam(String(authorize.headers['location'] ?? ''), 'state');
+      if (!serverState) {
+        throw new Error('The Daikin login server did not start a login session.');
+      }
+
+      // 2. Send the email and password. On success the response's location header is the app callback with the code.
+      this.log.debug(`[POST] ${AUTH_BASE}/auth`);
+      const auth = await axios.post(`${AUTH_BASE}/auth`, {
+        username: this.config.username,
+        password: this.config.password,
+        state: serverState,
+        uuid,
+      }, { timeout: 10000 });
+      const callback = String(auth.headers['location'] ?? '');
+      const code = this.getQueryParam(callback, 'code');
+      if (!code || this.getQueryParam(callback, 'state') !== clientState) {
+        this.passwordLoginFailed = true;
+        throw new Error('The Daikin login server did not return an authorization code. Check the email and password.');
+      }
+
+      // 3. Exchange the code for tokens.
+      return await this.login(code, codeVerifier);
+    } catch (error) {
+      const status = (error as AxiosError).response?.status;
+      this.handleRateLimit(status);
+      if (status && status >= 400 && status < 500 && status !== 429) {
+        // Most likely a wrong email or password.
+        this.passwordLoginFailed = true;
+      }
+      this.log.error('Unable to log in to the Daikin account:', (error as Error).message);
+      if (this.passwordLoginFailed) {
+        this.log.error(
+          'Not retrying, so the account is not locked. Check the email and password in the plugin config, then restart Homebridge.',
+        );
+      } else {
+        // Network problem or server error: try again later.
+        this.scheduleTokenRefresh(RATE_LIMIT_BACKOFF_MS);
+      }
+      return false;
+    }
+  }
+
+  private getQueryParam(url: string, name: string): string | null {
+    // The query can be inside a fragment (https://host/#/login?state=...) or on a custom scheme (daikinsmartapp://callback?code=...).
+    const index = url.lastIndexOf('?');
+    return index === -1 ? null : new URLSearchParams(url.slice(index + 1)).get(name);
+  }
+
+  private getClientId(): string {
+    return this.config.clientId || DEFAULT_CLIENT_ID;
+  }
+
+  private getInstallUuid(): string {
+    if (this.config.uuid) {
+      return this.config.uuid;
+    }
+    if (!this.tokens.uuid) {
+      this.tokens.uuid = crypto.randomUUID().toUpperCase();
+      this.writeTokenFile();
+    }
+    return this.tokens.uuid;
+  }
+
+  private getClientDeviceId(): string {
+    if (!this.tokens.clientDeviceId) {
+      this.tokens.clientDeviceId = `DEVICE_ID_${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
+      this.writeTokenFile();
+    }
+    return this.tokens.clientDeviceId;
   }
 
   private async refreshAccessToken(): Promise<boolean> {
@@ -293,28 +412,38 @@ class Client {
     }
   }
 
-  private async login(): Promise<boolean> {
+  /**
+   * Exchanges an authorization code for tokens. The code comes from the email/password login (with its PKCE
+   * code verifier), or from the config when it was captured from the Daikin Smart App.
+   */
+  private async login(code: string, codeVerifier?: string): Promise<boolean> {
     try {
       this.log.debug(`[POST] ${API_BASE}/premise/dsiot/login`);
       const result = await axios.post<LoginResponse>(`${API_BASE}/premise/dsiot/login`, {
         grant_type: 'authorization_code',
-        code: this.config.code,
-        client_id: this.config.clientId,
-        uuid: this.config.uuid,
+        code,
+        client_id: this.getClientId(),
+        uuid: this.getInstallUuid(),
         client_secret: this.config.clientSecret,
+        ...(codeVerifier ? { code_verifier: codeVerifier, redirect_uri: REDIRECT_URI } : {}),
       }, { timeout: 10000 });
-      this.saveTokens(result.data, this.config.code);
-      this.log.info('Logged in to the Daikin API. Tokens are saved, so you will not need a new authorization code after a restart.');
+      this.saveTokens(result.data, codeVerifier ? this.tokens.code : code);
+      this.log.info('Logged in to the Daikin API. Tokens are saved and renewed automatically.');
       return true;
     } catch (error) {
       const status = (error as AxiosError).response?.status;
       this.handleRateLimit(status);
       this.log.error(`[POST] ${API_BASE}/premise/dsiot/login`, (error as AxiosError)?.message);
-      if (status && status >= 400 && status < 500 && status !== 429) {
+      if (!codeVerifier && status && status >= 400 && status < 500 && status !== 429) {
         // This code has been used or has expired. Record it so it isn't sent again on every request.
-        this.tokens.code = this.config.code;
+        this.tokens.code = code;
         this.writeTokenFile();
         this.log.error('The authorization code was rejected (codes work only once). Capture a new one from the Daikin Smart App.');
+      }
+      if (codeVerifier && (status === 400 || status === 401)) {
+        // The login worked but the exchange was refused, most likely because the Client Secret is wrong.
+        this.passwordLoginFailed = true;
+        this.log.error('The Daikin API refused the login. Check the Client Secret in the plugin config, then restart Homebridge.');
       }
       return false;
     }
@@ -324,6 +453,8 @@ class Client {
     const lifetime = (data.expires_in || DEFAULT_TOKEN_LIFETIME_S) * 1000;
     this.authFailureLogged = false;
     this.tokens = {
+      uuid: this.tokens.uuid,
+      clientDeviceId: this.tokens.clientDeviceId,
       accessToken: data.access_token,
       // Some token responses leave out the refresh token, so keep the current one.
       refreshToken: data.refresh_token || this.tokens.refreshToken,
@@ -355,7 +486,13 @@ class Client {
     }
     // A refresh token set in the config wins when it differs from the last one it set.
     if (this.config.refreshToken && this.config.refreshToken !== this.tokens.configRefreshToken) {
-      this.tokens = { refreshToken: this.config.refreshToken, configRefreshToken: this.config.refreshToken, code: this.tokens.code };
+      this.tokens = {
+        uuid: this.tokens.uuid,
+        clientDeviceId: this.tokens.clientDeviceId,
+        refreshToken: this.config.refreshToken,
+        configRefreshToken: this.config.refreshToken,
+        code: this.tokens.code,
+      };
     }
   }
 

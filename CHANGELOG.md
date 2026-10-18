@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## Unreleased
+
+
+### Features
+
+* control with your Daikin account email and password: the plugin logs in like the Daikin Smart App (OAuth with PKCE at prod-dsioti.daikinsmartdb.jp), so you no longer need to capture a single-use authorization code
+* when saved tokens expire, the plugin logs in again by itself; a rejected email or password stops retries until restart so the account isn't locked
+* `clientId` and `uuid` are now optional: the plugin uses the Daikin Smart App's client ID and generates its own install ID
+
+
+### Documentation
+
+* README and config UI describe control with email and password instead of documenting the plugin as read-only
+
+
+### Tests
+
+* 176 tests covering local reads and caching, local-only mode, control batching and failures, rate limiting, email/password login, token renewal, captured codes and refresh tokens, the token file, every HomeKit service and the plugin's polling. Run with `npm test`; `npm run test:coverage` reports coverage (currently 100% of lines and branches). Publishing now runs the tests first.
+
 ### [0.1.1](https://github.com/dylannlaw/homebridge-daikin-air-purifier/compare/v0.1.0...v0.1.1) (2026-10-18)
 
 
@@ -9,8 +28,6 @@ All notable changes to this project will be documented in this file. See [standa
 
 * the plugin is documented as read-only: it shows sensors and status, but controlling the purifier isn't currently supported because the Daikin cloud API can't be logged in to from the plugin
 * cloud control settings are marked as experimental and unsupported in the README and the config UI
-
-0.1.0 was tagged on GitHub but never published to npm; 0.1.1 is the first npm release with the changes below.
 
 ## [0.1.0](https://github.com/dylannlaw/homebridge-daikin-air-purifier/compare/v0.0.6...v0.1.0) (2026-10-18)
 

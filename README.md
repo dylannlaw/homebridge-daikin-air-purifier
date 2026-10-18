@@ -3,27 +3,21 @@
 
 This is a Homebridge plugin built for Daikin Air Purifier (based on MCK70W model). 
 
-> **This plugin is currently read-only.** It shows the purifier's sensors and status in HomeKit, but it can't control the purifier.
-
 ## What works
 
-| Feature | Supported |
+| Feature | What you need |
 |---|---|
-| Temperature, humidity and air quality (PM2.5, dust, odour) sensors | ✅ |
-| Live status of power, mode, fan speed and humidifier | ✅ |
-| Control from HomeKit (on/off, fan speed, humidifier) | ❌ Not currently supported |
+| Temperature, humidity and air quality (PM2.5, dust, odour) sensors | The purifier's local IP (`host`) |
+| Live status of power, mode, fan speed and humidifier | The purifier's local IP (`host`) |
+| Control from HomeKit (on/off, fan speed, humidifier) | Also your Daikin account email and password, plus the cloud settings below |
 
-All you need is the purifier's local IP address (`host`). Status is read on your local network, with no account or cloud access.
+Status is always read on your local network. Newer purifier firmware (for example `3_15_0`) has removed local control, so control goes through the Daikin cloud (`https://api.daikinsmartdb.jp`), the same way the Daikin Smart App does.
 
-## Why control isn't supported
-Newer purifier firmware (for example `3_15_0`) has removed the local control endpoint (`/cleaner/set_control_info` returns 404), and it doesn't support Daikin's newer local DSIOT protocol either. The only way left to control it is through the Daikin cloud (`https://api.daikinsmartdb.jp`), which is what the Daikin Smart App uses.
+> **Control is new and not yet confirmed working end to end.** The email/password login follows the Daikin Smart App's current login. If it fails, the log says why, and sensors and status keep working.
 
-That cloud API can't currently be logged in to from the plugin. Its login takes a single-use authorization code that can only be captured from the Daikin Smart App with an HTTPS proxy, and there's no known way to log in with your email and password. If control becomes possible, it will be added back as a supported feature.
+## Configuration
 
-The plugin still contains experimental cloud control code. See [Experimental: cloud control](#experimental-cloud-control) if you want to try it, but it isn't supported.
-
-## Configuration Example
-
+Read-only (sensors and status):
 ```json
 {
     "accessory": "DaikinAirPurifier",
@@ -33,52 +27,46 @@ The plugin still contains experimental cloud control code. See [Experimental: cl
 }
 ```
 
-Give the purifier a fixed IP address in your router so `host` doesn't change. `cacheDuration` is how often, in seconds, the purifier is polled (minimum 15).
-
-In HomeKit, the control tiles are shown read-only.
-
-## Experimental: cloud control
-
-**Not supported.** It needs values captured from the Daikin Smart App with an HTTPS proxy, and they may stop working at any time. If the cloud credentials fail, the plugin falls back to read-only and keeps showing sensors and status.
-
+With control:
 ```json
 {
     "accessory": "DaikinAirPurifier",
     "name": "DaikinAirPurifier",
-    "serial": "abcdefg",
-    "model": "MCK70W",
     "host": "192.168.1.1",
-    "code": "",
-    "clientId": "",
-    "uuid": "",
+    "username": "you@example.com",
+    "password": "your Daikin Smart App password",
     "clientSecret": "",
     "terminalId": "",
-    "cacheDuration": 60,
-    "port": "30050"
+    "port": "30050",
+    "cacheDuration": 60
 }
 ```
 
-### Getting the cloud settings
-Knowledge of proxy is needed in order to get certain values while accessing [Daikin Smart App](https://apps.apple.com/app/id564109247).
+| Setting | Description |
+|---|---|
+| `host` | The purifier's local IP address. Give it a fixed IP in your router so it doesn't change. |
+| `cacheDuration` | How often, in seconds, the purifier is polled (minimum 15). |
+| `username`, `password` | The email and password you sign in to the [Daikin Smart App](https://apps.apple.com/app/id564109247) with. |
+| `clientSecret` | The `client_secret` from the app's `https://api.daikinsmartdb.jp/premise/dsiot/login` request body. |
+| `terminalId` | The `terminalid` query parameter of the app's `https://api.daikinsmartdb.jp/cleaner/set_control_info` request, sent when you change a setting in the app. |
+| `port` | Usually `30050`. It's also shown as `port=` at `http://<purifier IP>/common/basic_info`. |
 
-`code` - It can be obtained from `https://api.daikinsmartdb.jp/premise/dsiot/login` request body during login.
+`clientSecret` and `terminalId` have to be captured once from the Daikin Smart App with an HTTPS proxy. After that, the plugin logs in by itself.
 
-`clientId` - It can be obtained from `https://api.daikinsmartdb.jp/premise/dsiot/login` request body during login.
+### How login works
+The plugin logs in like the Daikin Smart App:
+1. It starts a login session at `https://prod-dsioti.daikinsmartdb.jp/dsioti/oauth2/authorize` (OAuth with PKCE).
+2. It sends your email and password to `https://prod-dsioti.daikinsmartdb.jp/dsioti/oauth2/auth`, which returns an authorization code.
+3. It exchanges the code for tokens at `https://api.daikinsmartdb.jp/premise/dsiot/login`.
 
-`uuid` - It can be obtained from `https://api.daikinsmartdb.jp/premise/dsiot/login` request body during login.
+Tokens are saved to `<homebridge storage>/daikin-air-purifier-<name>.json` (readable only by the Homebridge user) and renewed automatically. If they expire, the plugin logs in again with your email and password. If the email or password is rejected, it stops retrying until Homebridge restarts, so your account isn't locked.
 
-`clientSecret` - It can be obtained from `https://api.daikinsmartdb.jp/premise/dsiot/login` request body during login.
-
-`refreshToken` (optional, instead of `code`) - The `refresh_token` from the `https://api.daikinsmartdb.jp/premise/dsiot/login` or `/premise/dsiot/token` response.
-
-`terminalId` - It can be obtained from `https://api.daikinsmartdb.jp/cleaner/set_control_info` query parameter when adjusting the air purifier control in the app.
-
-`port` - It can be obtained from `https://api.daikinsmartdb.jp/cleaner/set_control_info` query parameter when adjusting the air purifier control in the app.
-
-### You only capture the code once
-An authorization `code` works a single time. After the first successful login the plugin saves its tokens to
-`<homebridge storage>/daikin-air-purifier-<name>.json` and renews them automatically, so restarts don't need a new code.
-You only need to capture a new `code` (or `refreshToken`) if the log says the saved token was rejected. When you put a new one in the config, the plugin uses it on the next restart.
+### Advanced settings
+Leave these empty unless you need them:
+- `clientId`: defaults to the Daikin Smart App's client ID.
+- `uuid`: an app install ID. The plugin generates and keeps one.
+- `code`: a single-use authorization code captured from the app, instead of email and password.
+- `refreshToken`: a `refresh_token` captured from the app, instead of email and password.
 
 ### How API calls are kept low
 - Status is read from the purifier on your local network once per `cacheDuration`, and that one result is shared by every HomeKit request.

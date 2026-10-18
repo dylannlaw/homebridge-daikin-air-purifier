@@ -3,11 +3,11 @@
   "name": "@dylannlaw/homebridge-daikin-air-purifier",
   "type": "module",
   "version": "0.1.1",
-  "description": "Homebridge plugin for Daikin Air Purifier (read-only: sensors and status)",
+  "description": "Homebridge plugin for Daikin Air Purifier",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git://github.com/dylannlaw/homebridge-daikin-air-purifier.git"
+    "url": "git+https://github.com/dylannlaw/homebridge-daikin-air-purifier.git"
   },
   "bugs": {
     "url": "https://github.com/dylannlaw/homebridge-daikin-air-purifier/issues"
@@ -21,7 +21,9 @@
     "lint": "eslint . --max-warnings=0",
     "watch": "npm run build && npm link && nodemon",
     "build": "rimraf ./dist && tsc",
-    "prepublishOnly": "npm run lint && npm run build"
+    "test": "npm run build && node --test --test-force-exit 'test/*.test.mjs'",
+    "test:coverage": "npm run build && node --test --test-force-exit --experimental-test-coverage --test-coverage-include='dist/**' 'test/*.test.mjs'",
+    "prepublishOnly": "npm run lint && npm test"
   },
   "keywords": [
     "homebridge",
