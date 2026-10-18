@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-## Unreleased
+## [0.2.0](https://github.com/dylannlaw/homebridge-daikin-air-purifier/compare/v0.1.1...v0.2.0) (2026-10-18)
 
 
 ### Features
@@ -20,6 +20,12 @@ All notable changes to this project will be documented in this file. See [standa
 ### Tests
 
 * 176 tests covering local reads and caching, local-only mode, control batching and failures, rate limiting, email/password login, token renewal, captured codes and refresh tokens, the token file, every HomeKit service and the plugin's polling. Run with `npm test`; `npm run test:coverage` reports coverage (currently 100% of lines and branches). Publishing now runs the tests first.
+
+
+### CI
+
+* fixed the GitHub Actions workflow, which failed because it tested on Node 12-16; it now tests on Node 22, 24 and 26
+* releases are published to npm automatically (trusted publishing, with provenance) and tagged when package.json has a new version
 
 ### [0.1.1](https://github.com/dylannlaw/homebridge-daikin-air-purifier/compare/v0.1.0...v0.1.1) (2026-10-18)
 
