@@ -25,34 +25,40 @@
         "placeholder": "192.168.1.1"
       },
       "code": {
-        "title": "Authorization Code",
+        "title": "Authorization Code (optional)",
         "type": "string",
-        "required": true
+        "description": "Only needed once. It works a single time; after the first login the plugin saves and renews its own tokens. Put a new code here only if the log asks for one."
+      },
+      "refreshToken": {
+        "title": "Refresh Token (optional)",
+        "type": "string",
+        "description": "Use this instead of the authorization code if you have captured a refresh_token from the Daikin Smart App."
       },
       "uuid": {
         "title": "Cognito UUID",
         "type": "string",
-        "required": true
+        "description": "Daikin cloud setting, needed only with an Authorization Code. Leave the cloud settings empty for local-only mode."
       },
       "clientId": {
         "title": "Client ID",
         "type": "string",
-        "required": true
+        "description": "Daikin cloud setting, needed only with an Authorization Code."
       },
       "clientSecret": {
         "title": "Client Secret",
         "type": "string",
-        "required": true
+        "description": "Daikin cloud setting, needed only with an Authorization Code."
       },
       "terminalId": {
         "title": "Terminal ID",
         "type": "string",
-        "required": true
+        "description": "Daikin cloud setting, needed to control the purifier."
       },
       "port": {
         "title": "Port",
         "type": "string",
-        "required": true
+        "description": "Daikin cloud setting, needed to control the purifier.",
+        "placeholder": "30050"
       },
       "model": {
         "title": "Model",
@@ -61,6 +67,7 @@
       },
       "cacheDuration": {
         "title": "Cache Duration (seconds)",
+        "description": "How often the purifier is polled on the local network. Controlling it uses the Daikin cloud API only when you change a setting.",
         "type": "integer",
         "required": true,
         "default": 60,

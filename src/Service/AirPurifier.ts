@@ -1,32 +1,33 @@
-import { AirPurifier as BaseAirPurifier } from 'hap-nodejs/dist/lib/definitions/ServiceDefinitions';
-import { AccessoryConfig, API, HAP, Logging } from 'homebridge';
-import Client from '../client';
-import { FanSpeed, HumidityLevel, Mode, PowerStatus } from '../constant';
+import type { AccessoryConfig, API, HAP, Logging, Service } from 'homebridge';
+import Client from '../client.js';
+import { FanSpeed, HumidityLevel, Mode, PowerStatus } from '../constant.js';
 
-class AirPurifier extends BaseAirPurifier {
-  private airPurifier: BaseAirPurifier;
+class AirPurifier {
+  private airPurifier: Service;
   private client: Client;
   private api: API;
 
   constructor(client: Client, hap: HAP, log: Logging, config: AccessoryConfig, api: API) {
-    super();
     this.airPurifier = new hap.Service.AirPurifier();
     this.client = client;
     this.api = api;
 
-    this.airPurifier.getCharacteristic(api.hap.Characteristic.Active)
-      .onGet(this.getActive.bind(this))
-      .onSet(this.setActive.bind(this));
+    client.bindSet(
+      this.airPurifier.getCharacteristic(api.hap.Characteristic.Active).onGet(this.getActive.bind(this)),
+      this.setActive.bind(this),
+    );
 
     this.airPurifier.getCharacteristic(api.hap.Characteristic.CurrentAirPurifierState)
       .onGet(this.getCurrentAirPurifierState.bind(this));
 
-    this.airPurifier.getCharacteristic(api.hap.Characteristic.TargetAirPurifierState)
-      .onGet(this.getTargetAirPurifierState.bind(this));
+    client.bindSet(
+      this.airPurifier.getCharacteristic(api.hap.Characteristic.TargetAirPurifierState).onGet(this.getTargetAirPurifierState.bind(this)),
+    );
 
-    this.airPurifier.getCharacteristic(api.hap.Characteristic.RotationSpeed)
-      .onGet(this.getRotationSpeed.bind(this))
-      .onSet(this.setRotationSpeed.bind(this));
+    client.bindSet(
+      this.airPurifier.getCharacteristic(api.hap.Characteristic.RotationSpeed).onGet(this.getRotationSpeed.bind(this)),
+      this.setRotationSpeed.bind(this),
+    );
 
     log.info('Initialize Air Purifier');
   }

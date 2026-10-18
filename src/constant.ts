@@ -24,7 +24,6 @@ export enum DustLevel {
   Good = '2',
   Fair = '3',
   Poor = '4',
-  Bad = '4',
   VeryBad = '5',
   Worst = '6',
 }
@@ -34,7 +33,6 @@ export enum OdorLevel {
   Good = '2',
   Fair = '3',
   Poor = '4',
-  Bad = '4',
   VeryBad = '5',
   Worst = '6',
 }
@@ -44,7 +42,6 @@ export enum PM2Level {
   Good = '2',
   Fair = '3',
   Poor = '4',
-  Bad = '4',
   VeryBad = '5',
   Worst = '6',
 }

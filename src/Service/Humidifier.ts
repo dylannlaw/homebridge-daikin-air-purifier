@@ -1,33 +1,35 @@
-import { HumidifierDehumidifier as BaseHumidifier } from 'hap-nodejs/dist/lib/definitions/ServiceDefinitions';
-import { AccessoryConfig, API, HAP, Logging } from 'homebridge';
-import Client from '../client';
-import { FanSpeed, HumidityLevel, Mode, PowerStatus } from '../constant';
+import type { AccessoryConfig, API, HAP, Logging, Service } from 'homebridge';
+import Client from '../client.js';
+import { FanSpeed, HumidityLevel, Mode, PowerStatus } from '../constant.js';
 
-class Humidifier extends BaseHumidifier {
-  private humidifier: BaseHumidifier;
+class Humidifier {
+  private humidifier: Service;
   private client: Client;
   private api: API;
 
   constructor(client: Client, hap: HAP, log: Logging, config: AccessoryConfig, api: API) {
-    super();
     this.humidifier = new hap.Service.HumidifierDehumidifier();
     this.client = client;
     this.api = api;
 
-    this.humidifier.getCharacteristic(api.hap.Characteristic.Active)
-      .onGet(this.getActive.bind(this))
-      .onSet(this.setActive.bind(this));
+    client.bindSet(
+      this.humidifier.getCharacteristic(api.hap.Characteristic.Active).onGet(this.getActive.bind(this)),
+      this.setActive.bind(this),
+    );
 
     this.humidifier.getCharacteristic(api.hap.Characteristic.CurrentHumidifierDehumidifierState)
       .onGet(this.getCurrentHumidifierDehumidifierState.bind(this));
 
-    this.humidifier.getCharacteristic(api.hap.Characteristic.TargetHumidifierDehumidifierState)
-      .onGet(this.getTargetHumidifierDehumidifierState.bind(this))
-      .onSet(this.setTargetHumidifierDehumidifierState.bind(this));
+    client.bindSet(
+      this.humidifier.getCharacteristic(api.hap.Characteristic.TargetHumidifierDehumidifierState)
+        .onGet(this.getTargetHumidifierDehumidifierState.bind(this)),
+      this.setTargetHumidifierDehumidifierState.bind(this),
+    );
 
-    this.humidifier.getCharacteristic(api.hap.Characteristic.WaterLevel)
-      .onGet(this.getWaterLevel.bind(this))
-      .onSet(this.setWaterLevel.bind(this));
+    client.bindSet(
+      this.humidifier.getCharacteristic(api.hap.Characteristic.WaterLevel).onGet(this.getWaterLevel.bind(this)),
+      this.setWaterLevel.bind(this),
+    );
 
     log.info('Initialize Humidifier');
   }
@@ -99,7 +101,7 @@ class Humidifier extends BaseHumidifier {
 
   async getWaterLevel() {
     const { unitStatus } = await this.client.getUnitInfo();
-    return unitStatus.water_supply;
+    return Number(unitStatus.water_supply);
   }
 
   async setWaterLevel(level) {

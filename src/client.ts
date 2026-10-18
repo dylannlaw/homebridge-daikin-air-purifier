@@ -1,149 +1,386 @@
 import axios, { AxiosError } from 'axios';
-import { AccessoryConfig, Logging } from 'homebridge';
-import NodeCache from 'node-cache';
-import { DustLevel, FanSpeed, HumidityLevel, Mode, OdorLevel, PM2Level, PowerStatus } from './constant';
-import { AirPurifier, ControlInfo, LoginResponse, RefreshToken, SensorInfo, UnitStatus } from './types';
+import fs from 'fs';
+import path from 'path';
+import type { AccessoryConfig, Characteristic, CharacteristicSetHandler, HAP, Logging } from 'homebridge';
+import { DustLevel, FanSpeed, HumidityLevel, Mode, OdorLevel, PM2Level, PowerStatus } from './constant.js';
+import type { AirPurifier, ControlInfo, LoginResponse, RefreshToken, SensorInfo, UnitStatus } from './types.js';
+
+const API_BASE = 'https://api.daikinsmartdb.jp';
+// Wait this long after the last change before sending, so dragging a slider sends one request instead of dozens.
+const SET_DEBOUNCE_MS = 1000;
+// Refresh the token this long before it expires.
+const TOKEN_REFRESH_MARGIN_MS = 5 * 60 * 1000;
+const DEFAULT_TOKEN_LIFETIME_S = 60 * 60;
+// After a 429, make no cloud calls for this long.
+const RATE_LIMIT_BACKOFF_MS = 5 * 60 * 1000;
+
+type UnitInfo = { airPurifier: AirPurifier; sensorInfo: SensorInfo; unitStatus: UnitStatus };
+
+type StoredTokens = {
+  accessToken?: string;
+  refreshToken?: string;
+  expiresAt?: number;
+  // Which authorization code these tokens came from, so a new code in the config forces a new login.
+  code?: string;
+  // The config refreshToken these tokens came from, so changing it in the config takes effect.
+  configRefreshToken?: string;
+};
 
 class Client {
+  // False in local-only mode: no cloud settings are configured, so the purifier can be read but not controlled.
+  readonly controlEnabled: boolean;
+
   private config: AccessoryConfig;
   private log: Logging;
-  private cache: NodeCache;
-  private timer: NodeJS.Timeout | null;
-  private accessToken: string | undefined;
-  private refreshToken: string | undefined;
+  private hap: HAP;
+  private cacheDuration: number;
+  private tokenFile: string;
 
-  private airPurifier: AirPurifier;
-  private sensorInfo: SensorInfo;
-  private unitStatus: UnitStatus;
+  private unitInfo: UnitInfo;
+  private unitInfoFetchedAt = 0;
+  private unitInfoRequest: Promise<UnitInfo> | null = null;
 
-  constructor(log: Logging, config: AccessoryConfig) {
-    this.cache = new NodeCache({ stdTTL: config.cacheDuration || 60 });
+  private tokens: StoredTokens = {};
+  private tokenTimer: NodeJS.Timeout | null = null;
+  private authRequest: Promise<boolean> | null = null;
+  private rateLimitedUntil = 0;
+
+  private pendingControl: ControlInfo = {};
+  private pendingWaiters: { resolve: () => void; reject: (error: Error) => void }[] = [];
+  private setTimer: NodeJS.Timeout | null = null;
+  // State before the queued changes were applied locally, restored if sending them fails.
+  private stateBeforeSet: AirPurifier | null = null;
+  private authFailureLogged = false;
+
+  constructor(log: Logging, config: AccessoryConfig, storagePath: string, hap: HAP) {
     this.config = config;
     this.log = log;
-    this.airPurifier = { pow: PowerStatus.Off, mode: Mode.AutoFan, airvol: FanSpeed.Off, humd: HumidityLevel.Off };
-    this.sensorInfo = {
-      htemp: '0.0',
-      hhum: HumidityLevel.Off,
-      pm25: PM2Level.Excellent,
-      dust: DustLevel.Excellent,
-      odor: OdorLevel.Excellent,
+    this.hap = hap;
+    this.cacheDuration = Math.max(Number(config.cacheDuration) || 60, 15) * 1000;
+    this.tokenFile = path.join(storagePath, `daikin-air-purifier-${(config.name || 'default').replace(/[^\w-]/g, '_')}.json`);
+
+    this.unitInfo = {
+      airPurifier: { pow: PowerStatus.Off, mode: Mode.AutoFan, airvol: FanSpeed.Off, humd: HumidityLevel.Off },
+      sensorInfo: {
+        htemp: '0.0',
+        hhum: HumidityLevel.Off,
+        pm25: PM2Level.Excellent,
+        dust: DustLevel.Excellent,
+        odor: OdorLevel.Excellent,
+      },
+      unitStatus: { filter: '0', strmr_cln: '0', water_supply: '0', unit_err: '0000' },
     };
-    this.unitStatus = { filter: '0', strmr_cln: '0', water_supply: '0', unit_err: '0000' };
 
-    this.login();
-    this.timer = setTimeout(this.refreshAccessToken.bind(this), 30 * 1000 * 60);
-  }
+    this.loadTokens();
+    this.controlEnabled = Boolean(
+      config.terminalId && config.port && (config.code || config.refreshToken || this.tokens.refreshToken),
+    );
 
-  async getUnitInfo(): Promise<{ airPurifier: AirPurifier; sensorInfo: SensorInfo; unitStatus: UnitStatus }> {
-    try {
-      let result: { data: string | Record<string, unknown> } | undefined = this.cache.get('unit_info');
-
-      if (! result) {
-        this.log.debug(`[GET] http://${this.config.host}/cleaner/get_unit_info`, new Date());
-        result = await axios.get<string>(`http://${this.config.host}/cleaner/get_unit_info`);
-      }
-
-      let info;
-      if ((typeof result?.data) === 'string') {
-        info = this.parseUnitInfo(result?.data as string);
-      } else {
-        info = result.data;
-      }
-
-      this.cache.set('unit_info', { data: info });
-
-      return {
-        airPurifier: info?.ctrl_info,
-        sensorInfo: info?.sensor_info,
-        unitStatus: info?.unit_status,
-      };
-
-    } catch (error) {
-      this.log.error(`[GET] http://${this.config.host}/cleaner/get_unit_info`, (error as AxiosError)?.message);
-
-      return {
-        airPurifier: this.airPurifier,
-        sensorInfo: this.sensorInfo,
-        unitStatus: this.unitStatus,
-      };
+    if (this.controlEnabled) {
+      this.ensureAuthenticated();
+    } else {
+      this.log.info(
+        'Running in local-only mode: sensors and status are read from the purifier, but it cannot be controlled from HomeKit. ' +
+        'Add the Daikin cloud settings (Terminal ID, Port and an Authorization Code or Refresh Token) to enable control.',
+      );
     }
   }
 
-  async setControlInfo (info: ControlInfo) {
-    try {
-      if (this.accessToken) {
-        this.log.debug('[GET] https://api.daikinsmartdb.jp/cleaner/set_control_info', new Date());
-        const response = await axios.get('https://api.daikinsmartdb.jp/cleaner/set_control_info', {
-          headers: {
-            Authorization: `Bearer ${ this.accessToken }`,
-          },
-          params: {
-            ...info,
-            id: 'ID',
-            spw: 'SPW',
-            terminalid: this.config.terminalId,
-            port: this.config.port,
-          }});
-        if (response.data !== 'ret=OK') {
-          throw new Error(`Unable to set control info: ${ response.data }`);
-        }
-
-        Object.keys(info).forEach((key) => {
-          if(info[key]) {
-            this.airPurifier[key] = info[key];
-          }
-        });
-
-        const data = this.cache.get('unit_info') as Record<string, unknown>;
-        if (data) {
-          this.cache.set('unit_info', { data: {
-            ...data,
-            ctrl_info: this.airPurifier,
-          }});
-        }
-      } else {
-        throw new Error('Missing accessToken');
+  /**
+   * Registers a set handler when control is available. In local-only mode the characteristic is made read-only instead,
+   * so HomeKit shows the value without offering a control that can't work.
+   */
+  bindSet(characteristic: Characteristic, handler?: CharacteristicSetHandler) {
+    if (this.controlEnabled) {
+      if (handler) {
+        characteristic.onSet(handler);
       }
-    } catch (error) {
-      this.log.error('[GET] https://api.daikinsmartdb.jp/cleaner/set_control_info', (error as AxiosError)?.message);
+    } else {
+      characteristic.setProps({ perms: [this.hap.Perms.PAIRED_READ, this.hap.Perms.NOTIFY] });
     }
   }
 
-  async refreshAccessToken() {
-    try {
-      if (this.refreshToken || this.config.refreshToken) {
-        if (this.timer) {
-          clearTimeout(this.timer);
-        }
-        this.timer = null;
-        this.log.debug('[POST] https://api.daikinsmartdb.jp/premise/dsiot/token', new Date());
-        const result = await axios.post<RefreshToken>('https://api.daikinsmartdb.jp/premise/dsiot/token', {
-          grant_type: 'refresh_token',
-          refresh_token: this.refreshToken ?? this.config.refreshToken,
-        });
-        this.accessToken = result.data.access_token;
-        this.refreshToken = result.data.refresh_token;
-        this.timer = setTimeout(this.refreshAccessToken.bind(this), 30 * 1000 * 60);
-      }
-    } catch (error) {
-      this.log.error('[POST] https://api.daikinsmartdb.jp/premise/dsiot/token', (error as AxiosError)?.message);
+  /**
+   * Returns the cached unit info, fetching it from the device only when the cache is stale.
+   * Calls that arrive while a fetch is running share it, so HomeKit asking for 20 values at once makes one request.
+   */
+  async getUnitInfo(force = false): Promise<UnitInfo> {
+    if (!force && Date.now() - this.unitInfoFetchedAt < this.cacheDuration) {
+      return this.unitInfo;
     }
-  }
-
-  async login() {
-    try {
-      this.log.debug('[POST] https://api.daikinsmartdb.jp/premise/dsiot/login', new Date());
-      const result = await axios.post<LoginResponse>('https://api.daikinsmartdb.jp/premise/dsiot/login', {
-        grant_type: 'authorization_code',
-        'code': this.config.code,
-        'client_id': this.config.clientId,
-        'uuid': this.config.uuid,
-        'client_secret': this.config.clientSecret,
+    if (!this.unitInfoRequest) {
+      this.unitInfoRequest = this.fetchUnitInfo().finally(() => {
+        this.unitInfoRequest = null;
       });
-      this.accessToken = result.data.access_token;
-      this.refreshToken = result.data.refresh_token;
+    }
+    return this.unitInfoRequest;
+  }
+
+  private async fetchUnitInfo(): Promise<UnitInfo> {
+    const url = `http://${this.config.host}/cleaner/get_unit_info`;
+    try {
+      this.log.debug(`[GET] ${url}`);
+      const result = await axios.get<string | Record<string, unknown>>(url, { timeout: 10000 });
+      const info = typeof result.data === 'string' ? this.parseUnitInfo(result.data) : result.data;
+
+      this.unitInfo = {
+        airPurifier: { ...this.unitInfo.airPurifier, ...info?.ctrl_info },
+        sensorInfo: { ...this.unitInfo.sensorInfo, ...info?.sensor_info },
+        unitStatus: { ...this.unitInfo.unitStatus, ...info?.unit_status },
+      };
     } catch (error) {
-      this.log.error('[POST] https://api.daikinsmartdb.jp/premise/dsiot/login', (error as AxiosError)?.message);
+      this.log.error(`[GET] ${url}`, (error as AxiosError)?.message);
+    }
+    // Set this on failure too, so an unreachable device isn't retried on every characteristic read.
+    this.unitInfoFetchedAt = Date.now();
+    return this.unitInfo;
+  }
+
+  /**
+   * Queues a control change. Changes made within SET_DEBOUNCE_MS of each other are merged and sent as one request,
+   * always together with the current values of the other settings.
+   */
+  setControlInfo(info: ControlInfo): Promise<void> {
+    if (!this.controlEnabled) {
+      return Promise.reject(new this.hap.HapStatusError(this.hap.HAPStatus.READ_ONLY_CHARACTERISTIC));
+    }
+    if (!this.stateBeforeSet) {
+      this.stateBeforeSet = { ...this.unitInfo.airPurifier };
+    }
+    Object.keys(info).forEach((key) => {
+      if (info[key] !== undefined) {
+        this.pendingControl[key] = info[key];
+      }
+    });
+    // Update local state right away so HomeKit shows the new value.
+    this.unitInfo.airPurifier = { ...this.unitInfo.airPurifier, ...this.pendingControl };
+
+    if (this.setTimer) {
+      clearTimeout(this.setTimer);
+    }
+    this.setTimer = setTimeout(this.flushControlInfo.bind(this), SET_DEBOUNCE_MS);
+
+    return new Promise((resolve, reject) => {
+      this.pendingWaiters.push({ resolve, reject });
+    });
+  }
+
+  private async flushControlInfo() {
+    this.setTimer = null;
+    const waiters = this.pendingWaiters;
+    this.pendingWaiters = [];
+    const control = { ...this.unitInfo.airPurifier, ...this.pendingControl };
+    const stateBeforeSet = this.stateBeforeSet;
+    this.pendingControl = {};
+    this.stateBeforeSet = null;
+
+    try {
+      await this.sendControlInfo(control);
+      this.unitInfo.airPurifier = { ...this.unitInfo.airPurifier, ...control };
+      // Read back the real state at the next poll, not immediately.
+      this.unitInfoFetchedAt = Date.now();
+      waiters.forEach(({ resolve }) => resolve());
+    } catch (error) {
+      this.log.error(`[GET] ${API_BASE}/cleaner/set_control_info`, (error as Error).message);
+      // The change didn't happen: put back the previous state so HomeKit doesn't show it, and reload it on the next read.
+      if (stateBeforeSet) {
+        this.unitInfo.airPurifier = stateBeforeSet;
+      }
+      this.unitInfoFetchedAt = 0;
+      const hapError = new this.hap.HapStatusError(this.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+      waiters.forEach(({ reject }) => reject(hapError));
+    }
+  }
+
+  private async sendControlInfo(control: AirPurifier, retried = false): Promise<void> {
+    this.checkRateLimit();
+    if (!(await this.ensureAuthenticated())) {
+      throw new Error('Not authenticated with the Daikin API. Check the authorization settings in the plugin config.');
+    }
+
+    try {
+      this.log.debug(`[GET] ${API_BASE}/cleaner/set_control_info`, control);
+      const response = await axios.get<string>(`${API_BASE}/cleaner/set_control_info`, {
+        timeout: 10000,
+        headers: { Authorization: `Bearer ${this.tokens.accessToken}` },
+        params: {
+          pow: control.pow,
+          mode: control.mode,
+          airvol: control.airvol,
+          humd: control.humd,
+          id: 'ID',
+          spw: 'SPW',
+          terminalid: this.config.terminalId,
+          port: this.config.port,
+        },
+      });
+      if (response.data !== 'ret=OK') {
+        throw new Error(`Unable to set control info: ${response.data}`);
+      }
+    } catch (error) {
+      const status = (error as AxiosError).response?.status;
+      this.handleRateLimit(status);
+      if ((status === 401 || status === 403) && !retried) {
+        // The access token expired early or was revoked: refresh once, then retry.
+        this.tokens.accessToken = undefined;
+        this.tokens.expiresAt = 0;
+        return this.sendControlInfo(control, true);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Makes sure there is a valid access token, refreshing or logging in only when needed.
+   * Calls that arrive at the same time share one request.
+   */
+  private ensureAuthenticated(): Promise<boolean> {
+    if (this.tokens.accessToken && (this.tokens.expiresAt ?? 0) - Date.now() > TOKEN_REFRESH_MARGIN_MS) {
+      return Promise.resolve(true);
+    }
+    if (!this.authRequest) {
+      this.authRequest = this.authenticate().finally(() => {
+        this.authRequest = null;
+      });
+    }
+    return this.authRequest;
+  }
+
+  private async authenticate(): Promise<boolean> {
+    if (Date.now() < this.rateLimitedUntil) {
+      return false;
+    }
+    if (this.tokens.refreshToken && (await this.refreshAccessToken())) {
+      return true;
+    }
+    // An authorization code works only once, so log in with it only if these tokens didn't come from it.
+    if (this.config.code && this.config.code !== this.tokens.code) {
+      return this.login();
+    }
+    if (!this.authFailureLogged) {
+      this.authFailureLogged = true;
+      this.log.error(
+        'No valid Daikin API token, so the purifier cannot be controlled. Sensors and status keep working. ' +
+        'To restore control, capture a new "code" (or "refreshToken") from the Daikin Smart App, put it in the plugin config ' +
+        'and restart Homebridge. You only need to do this once: tokens are saved and renewed automatically.',
+      );
+    }
+    return false;
+  }
+
+  private async refreshAccessToken(): Promise<boolean> {
+    try {
+      this.log.debug(`[POST] ${API_BASE}/premise/dsiot/token`);
+      const result = await axios.post<RefreshToken>(`${API_BASE}/premise/dsiot/token`, {
+        grant_type: 'refresh_token',
+        refresh_token: this.tokens.refreshToken,
+      }, { timeout: 10000 });
+      this.saveTokens(result.data, this.tokens.code);
+      return true;
+    } catch (error) {
+      const status = (error as AxiosError).response?.status;
+      this.handleRateLimit(status);
+      this.log.error(`[POST] ${API_BASE}/premise/dsiot/token`, (error as AxiosError)?.message);
+      if (status === 400 || status === 401) {
+        // The refresh token was rejected, so stop using it.
+        this.tokens.refreshToken = undefined;
+        this.writeTokenFile();
+      } else {
+        // Network problem or server error: keep the refresh token and try again later.
+        this.scheduleTokenRefresh(RATE_LIMIT_BACKOFF_MS);
+      }
+      return false;
+    }
+  }
+
+  private async login(): Promise<boolean> {
+    try {
+      this.log.debug(`[POST] ${API_BASE}/premise/dsiot/login`);
+      const result = await axios.post<LoginResponse>(`${API_BASE}/premise/dsiot/login`, {
+        grant_type: 'authorization_code',
+        code: this.config.code,
+        client_id: this.config.clientId,
+        uuid: this.config.uuid,
+        client_secret: this.config.clientSecret,
+      }, { timeout: 10000 });
+      this.saveTokens(result.data, this.config.code);
+      this.log.info('Logged in to the Daikin API. Tokens are saved, so you will not need a new authorization code after a restart.');
+      return true;
+    } catch (error) {
+      const status = (error as AxiosError).response?.status;
+      this.handleRateLimit(status);
+      this.log.error(`[POST] ${API_BASE}/premise/dsiot/login`, (error as AxiosError)?.message);
+      if (status && status >= 400 && status < 500 && status !== 429) {
+        // This code has been used or has expired. Record it so it isn't sent again on every request.
+        this.tokens.code = this.config.code;
+        this.writeTokenFile();
+        this.log.error('The authorization code was rejected (codes work only once). Capture a new one from the Daikin Smart App.');
+      }
+      return false;
+    }
+  }
+
+  private saveTokens(data: RefreshToken | LoginResponse, code: string | undefined) {
+    const lifetime = (data.expires_in || DEFAULT_TOKEN_LIFETIME_S) * 1000;
+    this.authFailureLogged = false;
+    this.tokens = {
+      accessToken: data.access_token,
+      // Some token responses leave out the refresh token, so keep the current one.
+      refreshToken: data.refresh_token || this.tokens.refreshToken,
+      expiresAt: Date.now() + lifetime,
+      code,
+    };
+    this.writeTokenFile();
+    this.scheduleTokenRefresh(lifetime - TOKEN_REFRESH_MARGIN_MS);
+  }
+
+  private scheduleTokenRefresh(delay: number) {
+    if (this.tokenTimer) {
+      clearTimeout(this.tokenTimer);
+    }
+    this.tokenTimer = setTimeout(() => {
+      this.tokenTimer = null;
+      this.ensureAuthenticated();
+    }, Math.max(delay, 60 * 1000));
+  }
+
+  private loadTokens() {
+    try {
+      if (fs.existsSync(this.tokenFile)) {
+        this.tokens = JSON.parse(fs.readFileSync(this.tokenFile, 'utf8'));
+        this.log.debug(`Loaded Daikin API tokens from ${this.tokenFile}`);
+      }
+    } catch (error) {
+      this.log.warn(`Unable to read ${this.tokenFile}:`, (error as Error).message);
+    }
+    // A refresh token set in the config wins when it differs from the last one it set.
+    if (this.config.refreshToken && this.config.refreshToken !== this.tokens.configRefreshToken) {
+      this.tokens = { refreshToken: this.config.refreshToken, configRefreshToken: this.config.refreshToken, code: this.tokens.code };
+    }
+  }
+
+  private writeTokenFile() {
+    try {
+      fs.writeFileSync(
+        this.tokenFile,
+        JSON.stringify({ ...this.tokens, configRefreshToken: this.config.refreshToken }, null, 2),
+        { mode: 0o600 },
+      );
+    } catch (error) {
+      this.log.warn(`Unable to write ${this.tokenFile}:`, (error as Error).message);
+    }
+  }
+
+  private handleRateLimit(status: number | undefined) {
+    if (status === 429) {
+      this.rateLimitedUntil = Date.now() + RATE_LIMIT_BACKOFF_MS;
+      this.log.warn(`The Daikin API rate limit was hit. Pausing cloud requests for ${RATE_LIMIT_BACKOFF_MS / 60000} minutes.`);
+    }
+  }
+
+  private checkRateLimit() {
+    if (Date.now() < this.rateLimitedUntil) {
+      throw new Error('Paused because the Daikin API rate limit was hit. Try again in a few minutes.');
     }
   }
 

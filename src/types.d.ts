@@ -1,4 +1,4 @@
-import { DustLevel, FanSpeed, HumidityLevel, Mode, OdorLevel, PM2Level, PowerStatus } from './constant';
+import { DustLevel, FanSpeed, HumidityLevel, Mode, OdorLevel, PM2Level, PowerStatus } from './constant.js';
 
 export type AirPurifier = {
   pow: PowerStatus;

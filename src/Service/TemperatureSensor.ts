@@ -1,15 +1,13 @@
-import { TemperatureSensor as BaseTemperatureSensor } from 'hap-nodejs/dist/lib/definitions/ServiceDefinitions';
-import { AccessoryConfig, API, HAP, Logging } from 'homebridge';
-import Client from '../client';
-import { PowerStatus } from '../constant';
+import type { AccessoryConfig, API, HAP, Logging, Service } from 'homebridge';
+import Client from '../client.js';
+import { PowerStatus } from '../constant.js';
 
-class TemperatureSensor extends BaseTemperatureSensor {
-  private temperatureSensor: BaseTemperatureSensor;
+class TemperatureSensor {
+  private temperatureSensor: Service;
   private client: Client;
   private api: API;
 
   constructor(client: Client, hap: HAP, log: Logging, config: AccessoryConfig, api: API) {
-    super();
     this.temperatureSensor = new hap.Service.TemperatureSensor();
     this.client = client;
     this.api = api;
@@ -25,7 +23,7 @@ class TemperatureSensor extends BaseTemperatureSensor {
 
   async getCurrentTemperature () {
     const { sensorInfo } = await this.client.getUnitInfo();
-    return sensorInfo.htemp;
+    return Number(sensorInfo.htemp);
   }
 
   async getStatusActive() {

@@ -1,13 +1,12 @@
-import { AccessoryInformation as BaseAccessoryInformation } from 'hap-nodejs/dist/lib/definitions/ServiceDefinitions';
-import { AccessoryConfig, API, HAP, Logging } from 'homebridge';
+import type { AccessoryConfig, API, HAP, Logging, Service } from 'homebridge';
 
-class AccessoryInformation extends BaseAccessoryInformation {
-  private information: BaseAccessoryInformation;
+class AccessoryInformation {
+  private information: Service;
   private model: string;
   private serial: string;
+  private name: string;
 
   constructor(hap: HAP, log: Logging, config: AccessoryConfig, api: API) {
-    super();
     this.information = new hap.Service.AccessoryInformation();
     this.name = config.name || 'Daikin';
     this.model = config.model || 'Unknown';

@@ -1,4 +1,4 @@
-import {
+import type {
   AccessoryConfig,
   AccessoryPlugin,
   API,
@@ -7,17 +7,17 @@ import {
   Service,
 } from 'homebridge';
 
-import AccessoryInformation from './Service/AccessoryInformation';
-import AirPurifier from './Service/AirPurifier';
-import Humidifier from './Service/Humidifier';
-import AirQualitySensor from './Service/AirQualitySensor';
-import HumiditySensor from './Service/HumiditySensor';
-import TemperatureSensor from './Service/TemperatureSensor';
-import Client from './client';
+import AccessoryInformation from './Service/AccessoryInformation.js';
+import AirPurifier from './Service/AirPurifier.js';
+import Humidifier from './Service/Humidifier.js';
+import AirQualitySensor from './Service/AirQualitySensor.js';
+import HumiditySensor from './Service/HumiditySensor.js';
+import TemperatureSensor from './Service/TemperatureSensor.js';
+import Client from './client.js';
 
 let hap: HAP;
 
-export = (api: API) => {
+export default (api: API) => {
   hap = api.hap;
   api.registerAccessory('DaikinAirPurifier', DaikinAirPurifier);
 };
@@ -26,7 +26,8 @@ class DaikinAirPurifier implements AccessoryPlugin {
 
   private readonly log: Logging;
   private client: Client;
-  private timer: NodeJS.Timeout | null;
+  private timer: NodeJS.Timeout | null = null;
+  private pollInterval: number;
 
   private accessoryInformation: AccessoryInformation;
   private airPurifier: AirPurifier;
@@ -37,7 +38,8 @@ class DaikinAirPurifier implements AccessoryPlugin {
 
   constructor(log: Logging, config: AccessoryConfig, api: API) {
     this.log = log;
-    this.client = new Client(log, config);
+    this.client = new Client(log, config, api.user.storagePath(), api.hap);
+    this.pollInterval = Math.max(Number(config.cacheDuration) || 60, 15) * 1000;
     this.accessoryInformation = new AccessoryInformation(hap, log, config, api);
     this.airPurifier = new AirPurifier(this.client, hap, log, config, api);
     this.humidifier = new Humidifier(this.client, hap, log, config, api);
@@ -46,7 +48,6 @@ class DaikinAirPurifier implements AccessoryPlugin {
     this.temperatureSensor = new TemperatureSensor(this.client, hap, log, config, api);
 
     log.info('Daikin Air Purifier is initialized.');
-    this.timer = setTimeout(this.refresh.bind(this), 15000);
     this.refresh();
   }
 
@@ -56,13 +57,19 @@ class DaikinAirPurifier implements AccessoryPlugin {
     }
     this.timer = null;
 
-    await this.airPurifier.identify();
-    await this.humidifier.identify();
-    await this.airQualitySensor.identify();
-    await this.humiditySensor.identify();
-    await this.temperatureSensor.identify();
+    try {
+      // One request to the device per poll. The identify() calls below read the cached result.
+      await this.client.getUnitInfo(true);
+      await this.airPurifier.identify();
+      await this.humidifier.identify();
+      await this.airQualitySensor.identify();
+      await this.humiditySensor.identify();
+      await this.temperatureSensor.identify();
+    } catch (error) {
+      this.log.error('Unable to refresh Daikin Air Purifier state:', (error as Error).message);
+    }
 
-    this.timer = setTimeout(this.refresh.bind(this), 15000);
+    this.timer = setTimeout(this.refresh.bind(this), this.pollInterval);
   }
 
   getServices(): Service[] {

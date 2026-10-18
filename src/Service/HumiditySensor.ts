@@ -1,15 +1,13 @@
-import { HumiditySensor as BaseHumiditySensor } from 'hap-nodejs/dist/lib/definitions/ServiceDefinitions';
-import { AccessoryConfig, API, HAP, Logging } from 'homebridge';
-import Client from '../client';
-import { PowerStatus } from '../constant';
+import type { AccessoryConfig, API, HAP, Logging, Service } from 'homebridge';
+import Client from '../client.js';
+import { PowerStatus } from '../constant.js';
 
-class HumiditySensor extends BaseHumiditySensor {
-  private humiditySensor: BaseHumiditySensor;
+class HumiditySensor {
+  private humiditySensor: Service;
   private client: Client;
   private api: API;
 
   constructor(client: Client, hap: HAP, log: Logging, config: AccessoryConfig, api: API) {
-    super();
     this.humiditySensor = new hap.Service.HumiditySensor();
     this.client = client;
     this.api = api;
@@ -25,7 +23,7 @@ class HumiditySensor extends BaseHumiditySensor {
 
   async getCurrentRelativeHumidity () {
     const { sensorInfo } = await this.client.getUnitInfo();
-    return sensorInfo.hhum;
+    return Number(sensorInfo.hhum);
   }
 
   async getStatusActive() {
