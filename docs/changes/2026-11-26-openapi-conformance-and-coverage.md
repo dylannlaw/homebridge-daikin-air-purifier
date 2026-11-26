@@ -24,7 +24,7 @@ A new capture of the Daikin Smart App's traffic (November 2026) was written up a
 - **Required settings:** worked out from what `set_control_info` needs (README "How control works, end to end"). `port` is read from `http://<host>/common/basic_info` (local, once per restart) when not set, and the response, which holds the purifier's own credentials, is never logged. A local-only start with some control settings filled in logs `Control is off because these settings are missing: …`, with names only. `config.schema.json` groups the control settings in a "Control from HomeKit" section. Considered also defaulting `terminalId` to the app UUID, since the spec calls the login `uuid` a "terminal/client UUID", but rejected it for now: it's a guess, and a wrong one would turn every change into an error.
 - **Tests:** the existing unit tests were updated to the spec's endpoints, bodies and headers. New tests cover `userinfo` (fetched once, saved across restarts, kept across renewals, refetched after a new login or a 401, a missing field fails the change) and check the device password never appears in the log. The mock tells the code exchange and renewal apart by `grant_type`, since they share one URL. An earlier draft added tests that parsed the YAML spec; they were dropped in favour of plain unit tests on the client, along with the `yaml` dev dependency, so no dependency is added.
 - **Flaky test count (already broken before this change):** `--test-force-exit` was needed because the token-renewal timer kept the test process alive. With it, about 1 run in 4 ended before the last file reported and still exited 0. The timer is now `unref()`ed and the flag removed. In Homebridge the process stays alive anyway, so renewal behaves the same.
-- **Coverage:** `npm run test:coverage` writes `coverage/lcov.info`, mapped back to `src/*.ts` with `--enable-source-maps`. CI uploads it once, from the Node.js 24 job, with `codecov/codecov-action@v7` and `fail_ci_if_error: false`. Type-only `import` lines are reported as uncovered once mapped, so the total is about 98%.
+- **Coverage:** `npm run test:coverage` writes `coverage/lcov.info`, mapped back to `src/*.ts` with `--enable-source-maps`. CI uploads it once, from the Node.js 24 job of `tests.yml`, with `codecov/codecov-action` v7.1.1 pinned by SHA and `fail_ci_if_error: false`. Type-only `import` lines are reported as uncovered once mapped, so the total is about 98%.
 
 ## Files
 
@@ -37,7 +37,7 @@ A new capture of the Daikin Smart App's traffic (November 2026) was written up a
 - `docs/plans/align-api-with-openapi.md`, `docs/research/2026-11-26-openapi-conformance.md`, `docs/README.md`.
 - `README.md`, `config.schema.json`: required settings, end-to-end control flow, `clientSecret` source, captured-code caveat, API reference link, Codecov badge; schema layout and descriptions.
 - `package.json`: lcov output, `--test-force-exit` removed.
-- `.github/workflows/build.yml`: Codecov upload.
+- `.github/workflows/tests.yml`: Codecov upload (pinned to a commit SHA like the other actions; skipped when `release.yml` calls the workflow).
 
 ## Docs updated
 

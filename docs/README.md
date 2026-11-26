@@ -13,6 +13,7 @@ Living files, written before a larger change is built.
 One per non-trivial change, newest first.
 
 - [2026-11-26 Follow the OpenAPI reference for API calls, and Codecov coverage](changes/2026-11-26-openapi-conformance-and-coverage.md)
+- [2026-11-26 Release to npm on every commit to master](changes/2026-11-26-release-on-every-commit.md)
 - [2026-11-26 Adopt the docs-first workflow](changes/2026-11-26-adopt-docs-first-workflow.md)
 
 ## Research
