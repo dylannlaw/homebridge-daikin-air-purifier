@@ -21,6 +21,7 @@ Living files, written before a larger change is built.
 One per non-trivial change, newest first.
 
 - [2026-11-26 Run the local test Homebridge in debug mode](changes/2026-11-26-local-homebridge-debug-mode.md)
+- [2026-11-26 Describe the settings as cloud mode and local mode](changes/2026-11-26-cloud-and-local-modes.md)
 - [2026-11-26 Guide to capturing credentials with mitmproxy](changes/2026-11-26-mitmproxy-capture-guide.md)
 - [2026-11-26 Follow the OpenAPI reference for API calls, and read status from the cloud](changes/2026-11-26-openapi-conformance-and-coverage.md)
 - [2026-11-26 Split the README into short overview and guides](changes/2026-11-26-split-readme-into-guides.md)
