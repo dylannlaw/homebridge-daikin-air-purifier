@@ -10,7 +10,7 @@
   <a href="https://www.npmjs.com/package/@dylannlaw/homebridge-daikin-air-purifier"><img src="https://img.shields.io/npm/v/@dylannlaw/homebridge-daikin-air-purifier?color=666666&labelColor=444444" alt="Latest version on npm"></a>
   <a href="https://www.npmjs.com/package/@dylannlaw/homebridge-daikin-air-purifier"><img src="https://img.shields.io/npm/dm/@dylannlaw/homebridge-daikin-air-purifier?color=666666&labelColor=444444" alt="Downloads per month"></a>
   <a href="https://github.com/dylannlaw/homebridge-daikin-air-purifier/actions/workflows/tests.yml"><img src="https://github.com/dylannlaw/homebridge-daikin-air-purifier/actions/workflows/tests.yml/badge.svg?branch=master" alt="Tests on the master branch"></a>
-  <a href="https://codecov.io/gh/dylannlaw/homebridge-daikin-air-purifier"><img src="https://img.shields.io/codecov/c/github/dylannlaw/homebridge-daikin-air-purifier/master?color=666666&labelColor=444444" alt="Test coverage on the master branch"></a>
+  <a href="https://codecov.io/gh/dylannlaw/homebridge-daikin-air-purifier"><img src="https://codecov.io/gh/dylannlaw/homebridge-daikin-air-purifier/branch/master/graph/badge.svg" alt="Test coverage on the main branch"></a>
   <a href="https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/LICENSE"><img src="https://img.shields.io/github/license/dylannlaw/homebridge-daikin-air-purifier?color=666666&labelColor=444444" alt="License"></a>
   <a href="https://github.com/dylannlaw/homebridge-daikin-air-purifier"><img src="https://img.shields.io/github/stars/dylannlaw/homebridge-daikin-air-purifier?style=social" alt="Stars"></a>
 </p>
