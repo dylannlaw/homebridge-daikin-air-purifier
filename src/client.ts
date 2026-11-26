@@ -51,7 +51,7 @@ type StoredTokens = {
 };
 
 class Client {
-  // True when a Daikin login is configured: status is read from the Daikin cloud, with the local IP as the fallback.
+  // True when a Daikin login is configured: status can be read from the Daikin cloud (the fallback when `host` is set).
   readonly cloudEnabled: boolean;
   // True when the cloud login and the Terminal ID are configured, so the purifier can be controlled.
   readonly controlEnabled: boolean;
@@ -84,8 +84,12 @@ class Client {
   private devicePort: string | null = null;
   // After a login fails for a reason worth retrying (network, server error), don't try again before this time.
   private authRetryAt = 0;
-  // Whether the last cloud status read failed, so the fallback to the local IP is logged once, not on every refresh.
+  // Whether the last cloud status read failed, so it's logged once per outage, not on every refresh.
   private cloudStatusFailing = false;
+  // Whether the last local status read failed, so it's logged once per outage, not on every refresh.
+  private localStatusFailing = false;
+  // When the cloud was last asked for status as the fallback for a failed local read, to limit it to the cloud minimum.
+  private cloudFallbackAt = 0;
 
   constructor(log: Logging, config: AccessoryConfig, storagePath: string, hap: HAP) {
     this.config = config;
@@ -121,7 +125,7 @@ class Client {
     }
     if (!this.controlEnabled) {
       this.log.info(
-        `Running in read-only mode: status is read from ${this.cloudEnabled ? 'the Daikin cloud' : 'the purifier'}, ` +
+        `Running in read-only mode: status is read from ${config.host ? 'the purifier' : 'the Daikin cloud'}, ` +
         'but it cannot be controlled from HomeKit. ' +
         'To enable control, add your Daikin account email and password, the Client Secret and the Terminal ID.',
       );
@@ -133,15 +137,16 @@ class Client {
   }
 
   /**
-   * `cacheDuration` in seconds: at least 15 seconds, or 60 when status comes from the Daikin cloud, so polling alone
-   * can't get the account rate-limited.
+   * `cacheDuration` in seconds: at least 15 seconds when status is read from the local IP, or 60 when it comes from the
+   * Daikin cloud, so polling alone can't get the account rate-limited.
    */
   private getCacheDuration(): number {
-    const minimum = this.cloudEnabled ? MIN_CLOUD_CACHE_DURATION_S : MIN_LOCAL_CACHE_DURATION_S;
+    const fromCloud = !this.config.host;
+    const minimum = fromCloud ? MIN_CLOUD_CACHE_DURATION_S : MIN_LOCAL_CACHE_DURATION_S;
     const requested = Number(this.config.cacheDuration) || DEFAULT_CACHE_DURATION_S;
     if (requested < minimum) {
       this.log.warn(
-        `Cache duration ${requested}s is below the minimum of ${minimum}s${this.cloudEnabled ? ' for the Daikin cloud' : ''}; ` +
+        `Cache duration ${requested}s is below the minimum of ${minimum}s${fromCloud ? ' for the Daikin cloud' : ''}; ` +
         `using ${minimum}s. Refreshing too often can get the Daikin account rate-limited.`,
       );
     }
@@ -202,7 +207,7 @@ class Client {
 
   /**
    * For HomeKit read handlers: returns the last known status at once and never waits on the network. A slow Daikin
-   * cloud (each attempt can take up to 10 seconds, then the local IP fallback) would otherwise make every read handler
+   * cloud (each attempt can take up to 10 seconds) would otherwise make every read handler
    * slow and Homebridge warn that the plugin slows it down. The poll keeps the cache fresh. Only when it is more
    * than two poll intervals old (a failed change clears it, so the real state is read back) does this start a refresh
    * in the background, shared with any already running; the margin keeps it from adding requests next to the poll.
@@ -215,16 +220,20 @@ class Client {
   }
 
   /**
-   * Reads status from the Daikin cloud when a login is configured, and from the purifier's local IP when the cloud
-   * isn't configured or the cloud read fails.
+   * Reads status from the purifier's local IP when `host` is set, since it answers in well under a second, and from
+   * the Daikin cloud when it isn't. When the local read fails and a Daikin login is configured, the cloud is read
+   * instead, at most once per cloud minimum so a local outage can't poll the cloud on every refresh.
    */
   private async fetchUnitInfo(): Promise<UnitInfo> {
     let info: UnitInfoResponse | null = null;
-    if (this.cloudEnabled) {
-      info = await this.fetchCloudUnitInfo();
-    }
-    if (!info && this.config.host) {
+    if (this.config.host) {
       info = await this.fetchLocalUnitInfo();
+      if (!info && this.cloudEnabled && Date.now() - this.cloudFallbackAt >= MIN_CLOUD_CACHE_DURATION_S * 1000) {
+        this.cloudFallbackAt = Date.now();
+        info = await this.fetchCloudUnitInfo();
+      }
+    } else if (this.cloudEnabled) {
+      info = await this.fetchCloudUnitInfo();
     }
     if (info) {
       this.unitInfo = {
@@ -251,9 +260,8 @@ class Client {
       this.cloudStatusFailing = false;
       return info;
     } catch (error) {
-      const fallback = this.config.host ? ' Reading it from the purifier\'s local IP instead.' : '';
       if (!this.cloudStatusFailing) {
-        this.log.warn(`Unable to read status from the Daikin cloud: ${(error as Error).message}.${fallback}`);
+        this.log.warn(`Unable to read status from the Daikin cloud: ${(error as Error).message}.`);
       } else {
         this.log.debug(`[GET] ${UNIT_INFO_URL}`, (error as Error).message);
       }
@@ -267,9 +275,23 @@ class Client {
     try {
       this.log.debug(`[GET] ${url}`);
       const result = await axios.get<string | UnitInfoResponse>(url, { timeout: 10000 });
-      return typeof result.data === 'string' ? this.parseUnitInfo(result.data) : (result.data ?? {});
+      const info = typeof result.data === 'string' ? this.parseUnitInfo(result.data) : (result.data ?? {});
+      if (this.localStatusFailing) {
+        this.log.info('Reading status from the purifier\'s local IP again.');
+      }
+      this.localStatusFailing = false;
+      return info;
     } catch (error) {
-      this.log.error(`[GET] ${url}`, (error as AxiosError)?.message);
+      const message = (error as AxiosError)?.message;
+      if (this.localStatusFailing) {
+        this.log.debug(`[GET] ${url}`, message);
+      } else if (this.cloudEnabled) {
+        this.log.warn(`Unable to read status from the purifier's local IP (${this.config.host}): ${message}. ` +
+          'Reading it from the Daikin cloud instead.');
+      } else {
+        this.log.error(`[GET] ${url}`, message);
+      }
+      this.localStatusFailing = true;
       return null;
     }
   }

@@ -28,8 +28,8 @@ describe('changing settings', () => {
     assert.equal(server.count(SET), 1);
     assert.equal(req.method, 'get');
     assert.deepEqual(req.params, {
-      // The other settings are the current state, read from the cloud's get_unit_info.
-      id: DEVICE_ID, spw: DEVICE_PASSWORD, port: '30050', terminalid: 'T123', pow: '0', mode: '1', airvol: '2', humd: '1',
+      // The other settings are the current state, read from the purifier's local get_unit_info.
+      id: DEVICE_ID, spw: DEVICE_PASSWORD, port: '30050', terminalid: 'T123', pow: '0', mode: '0', airvol: '3', humd: '2',
     });
   });
 
@@ -189,8 +189,8 @@ describe('the port for device calls', () => {
 
   test('a failed read is tried again on the next change', async () => {
     let calls = 0;
-    // The first two reads fail: the status read at startup, then the first change.
-    const { client, server } = await readyClient({ [BASIC]: () => (++calls <= 2 ? [500, 'error'] : [200, 'ret=OK,port=30052']) }, NO_PORT);
+    // The first read fails: the first change. (Status is read from the local IP, so it doesn't need the port.)
+    const { client, server } = await readyClient({ [BASIC]: () => (++calls <= 1 ? [500, 'error'] : [200, 'ret=OK,port=30052']) }, NO_PORT);
     await rejection(flushSet(mock, client.setControlInfo({ pow: '0' })));
     await flushSet(mock, client.setControlInfo({ pow: '0' }));
     assert.equal(server.last(SET).params.port, '30052');
@@ -210,10 +210,10 @@ describe('when a change fails', () => {
   test('after a failure the old value is restored and the purifier is read again on the next read', async () => {
     const { client, server } = await readyClient({ [SET]: () => [500, 'error'] });
     await rejection(flushSet(mock, client.setControlInfo({ pow: '0' })));
-    const reads = server.count(CLOUD_UNIT);
+    const reads = server.count(UNIT);
     const info = await client.getUnitInfo();
     assert.equal(info.airPurifier.pow, '1');
-    assert.equal(server.count(CLOUD_UNIT), reads + 1);
+    assert.equal(server.count(UNIT), reads + 1);
   });
 
   test('every change in a failed batch is rejected', async () => {
@@ -292,7 +292,7 @@ describe('Daikin API rate limit (HTTP 429)', () => {
     const info = await client.getUnitInfo(true);
     assert.equal(info.sensorInfo.htemp, '26.0');
     assert.equal(server.count(CLOUD_UNIT), cloudReads);
-    assert.equal(server.count(UNIT), 1);
+    assert.equal(server.count(UNIT), 2);
   });
 
   test('a 429 while logging in pauses logins too', async () => {

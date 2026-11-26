@@ -22,11 +22,11 @@
         "type": "string",
         "format": "ipv4",
         "placeholder": "192.168.1.1",
-        "description": "Local mode: required, and the only setting needed (status only, no control from HomeKit). Cloud mode: optional; status is read from the Daikin cloud and this IP is the fallback."
+        "description": "Recommended. Status is read from this IP first, which is much faster than the Daikin cloud. Local mode: required, and the only setting needed (status only, no control from HomeKit). Cloud mode: the cloud is used for control, and for status only when this IP can't be reached."
       },
       "cacheDuration": {
         "title": "Cache Duration (seconds)",
-        "description": "How often status is fetched. Minimum 15 seconds from the local IP, 60 from the Daikin cloud. Each refresh is one request; refreshing too often can get your Daikin account rate-limited (the plugin then pauses cloud requests for 5 minutes).",
+        "description": "How often status is fetched. Minimum 15 seconds with a local IP, 60 when status comes only from the Daikin cloud. Each refresh is one request; refreshing too often can get your Daikin account rate-limited (the plugin then pauses cloud requests for 5 minutes).",
         "type": "integer",
         "required": true,
         "default": 60,

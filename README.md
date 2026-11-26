@@ -37,7 +37,7 @@
     </td>
     <td width="50%" valign="top">
       <h3>📊 Live purifier status</h3>
-      Whether it's on, its mode, fan speed and humidifier are kept up to date, read from the Daikin cloud or straight from the purifier on your network.
+      Whether it's on, its mode, fan speed and humidifier are kept up to date, read straight from the purifier on your network or from the Daikin cloud.
     </td>
   </tr>
   <tr>
@@ -52,8 +52,8 @@
   </tr>
   <tr>
     <td width="50%" valign="top">
-      <h3>🔁 Cloud first, local fallback</h3>
-      With your Daikin account set, status comes from the Daikin cloud. Add the purifier's local IP and it takes over whenever the cloud can't be reached.
+      <h3>⚡ Local first, cloud fallback</h3>
+      Add the purifier's local IP and status is read straight from it, in well under a second. The Daikin cloud takes over whenever the purifier can't be reached.
     </td>
     <td width="50%" valign="top">
       <h3>🛡️ Gentle on your Daikin account</h3>
@@ -83,7 +83,7 @@ You need:
    npm install -g @dylannlaw/homebridge-daikin-air-purifier
    ```
 
-2. **Find the purifier's local IP address.** In the Daikin Smart App, open the purifier and go to its **Model information** section: the IP address is listed there. Local mode needs it, and cloud mode uses it as a fallback.
+2. **Find the purifier's local IP address.** In the Daikin Smart App, open the purifier and go to its **Model information** section: the IP address is listed there. Local mode needs it, and in cloud mode it makes status much faster (see below).
 3. **Give the purifier a fixed IP** (recommended). In your router, reserve that IP address for the purifier so it doesn't change.
 4. **Configure it.** Open the plugin's **Settings** in the Homebridge UI and fill in the fields for your mode, or edit `config.json` as shown in [Configure it](#configure-it).
 5. **Restart Homebridge.** The purifier and its sensors appear in the Home app, in the room of your Homebridge bridge. Move them to the right room if you like.
@@ -97,13 +97,14 @@ All four of `username`, `password`, `clientSecret` and `terminalId` are required
 
 1. Enter the **email** and **password** you sign in to the Daikin Smart App with.
 2. Capture `clientSecret` and `terminalId` once from the app's traffic: [Capturing credentials with mitmproxy](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/docs/guides/capturing-credentials.md) shows how. After that, the plugin logs in by itself.
-3. Optionally add `host`, the purifier's local IP, as a fallback.
+3. **Recommended: add `host`, the purifier's local IP.** Status is then read straight from the purifier on your network, which answers in well under a second. Without it, every status read goes through the Daikin cloud, which waits for the purifier to check in and can take several seconds or time out. The cloud is still used for control (current firmware has no local control) and as the fallback when the purifier can't be reached locally. Give the purifier a fixed IP in your router so it doesn't change.
 
 ```json
 {
     "accessory": "DaikinAirPurifier",
     "name": "DaikinAirPurifier",
     "cacheDuration": 60,
+    "host": "192.168.1.1",
     "username": "you@example.com",
     "password": "your Daikin Smart App password",
     "clientSecret": "captured once from the app",
@@ -128,7 +129,7 @@ Only `host`, the purifier's local IP, is required. Leave the Daikin account sett
 
 | Setting | Needed for | Description |
 |---|---|---|
-| `host` | **Required in local mode**; optional fallback in cloud mode | The purifier's local IP address, shown in the Daikin Smart App under the purifier's **Model information**. Give it a fixed IP in your router so it doesn't change. |
+| `host` | **Required in local mode**; **recommended in cloud mode** | Status is read from this IP first, which is much faster than the Daikin cloud; in cloud mode the cloud is the fallback. The purifier's local IP address, shown in the Daikin Smart App under the purifier's **Model information**. Give it a fixed IP in your router so it doesn't change. |
 | `cacheDuration` | Optional (default 60) | How often, in seconds, status is fetched. See [How often it checks, and rate limits](#how-often-it-checks-and-rate-limits). |
 | `modeSwitches` | Optional (default all three) | Which Daikin modes get a switch in HomeKit: `eco`, `pollen`, `circulator`. `[]` shows none. See [Mode switches](#mode-switches). |
 | `username`, `password` | **Required for control**; also cloud status | The email and password you sign in to the [Daikin Smart App](https://apps.apple.com/app/id564109247) with. |
@@ -165,17 +166,17 @@ Each change is one request, like any other control. In local mode, or without th
 ## Limitations
 
 - **No local control.** Newer purifier firmware (for example `3_15_0`) has removed local control, so control always goes through the Daikin cloud, the same way the Daikin Smart App does. Local mode is read-only.
-- **Cloud status and control are new** and not yet confirmed working end to end. The login follows the Daikin Smart App's current login. If it fails, the log says why, and status falls back to the local IP if it's set.
+- **Cloud status and control are new** and not yet confirmed working end to end. The login follows the Daikin Smart App's current login. If it fails, the log says why. With `host` set, status keeps coming from the purifier anyway.
 - **One model and firmware tested.** Only the MCK70W on firmware 3.17.0-g4 has been tested. Other firmware versions and other Daikin purifiers that use the Daikin Smart App may work, but aren't confirmed.
 
 ## Good to know
 
 ### How often it checks, and rate limits
 
-Every refresh is one request: to the Daikin cloud when your account is set, otherwise to the purifier on your network. HomeKit reads in between are answered from the last result.
+Every refresh is one request: to the purifier on your network when `host` is set, otherwise to the Daikin cloud. HomeKit reads in between are answered from the last result.
 
-- **Local IP:** minimum 15 seconds. There's no account limit, but very frequent polling can make the purifier slow to respond.
-- **Daikin cloud:** minimum 60 seconds. **Refreshing too often can get your Daikin account rate-limited** (HTTP 429). When that happens the plugin pauses all cloud requests, including control, for 5 minutes, and reads status from the local IP in the meantime if `host` is set. At 60 seconds that's 1,440 cloud requests a day; 300 seconds (5 minutes) is 288. Prefer a longer interval if you don't need fast updates.
+- **Local IP:** minimum 15 seconds. There's no account limit, but very frequent polling can make the purifier slow to respond. If the purifier doesn't answer and your Daikin account is set, status is read from the cloud instead, at most once a minute.
+- **Daikin cloud only (no `host`):** minimum 60 seconds. **Refreshing too often can get your Daikin account rate-limited** (HTTP 429). When that happens the plugin pauses all cloud requests, including control, for 5 minutes. At 60 seconds that's 1,440 cloud requests a day; 300 seconds (5 minutes) is 288. Setting `host` avoids these requests altogether.
 
 A value below the minimum is raised to it, with a warning in the log.
 
@@ -189,7 +190,7 @@ A value below the minimum is raised to it, with a warning in the log.
 
 | Guide | Read it to |
 |---|---|
-| 📖 [How it works](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/docs/guides/how-it-works.md) | Understand how status is read (cloud first, local IP as fallback), how control works end to end, how the plugin logs in and stores tokens, how it keeps API calls low, the advanced settings, and the API reference. |
+| 📖 [How it works](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/docs/guides/how-it-works.md) | Understand how status is read (local IP first, cloud as fallback), how control works end to end, how the plugin logs in and stores tokens, how it keeps API calls low, the advanced settings, and the API reference. |
 | 🔑 [Capturing credentials with mitmproxy](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/docs/guides/capturing-credentials.md) | Read `clientSecret` and `terminalId` from the Daikin Smart App's traffic, step by step, and what to do if the app refuses the connection. |
 | 📱 [Testing locally with your iPhone](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/docs/guides/testing-locally.md) | Try the plugin, or a change that isn't released yet, in a private test Homebridge on your computer and the Home app on your iPhone, with one command. |
 | 🛡️ [Security policy](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/SECURITY.md) | Report a security problem privately. |

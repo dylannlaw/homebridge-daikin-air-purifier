@@ -6,7 +6,7 @@ How and why this project is built the way it is. Read this before changing anyth
 
 For users, linked from the main README.
 
-- [How it works](guides/how-it-works.md): cloud status with the local IP as fallback, how control works end to end, login and tokens, how API calls are kept low, advanced settings, API reference.
+- [How it works](guides/how-it-works.md): status from the local IP first with the cloud as fallback, how control works end to end, login and tokens, how API calls are kept low, advanced settings, API reference.
 - [Capturing credentials with mitmproxy](guides/capturing-credentials.md): read `clientSecret` and `terminalId` from the Daikin Smart App's traffic (WireGuard mode; not yet confirmed to work with the current app).
 - [Testing locally with your iPhone](guides/testing-locally.md): run the plugin in a private test Homebridge and pair it with the Home app.
 
@@ -14,6 +14,7 @@ For users, linked from the main README.
 
 Living files, written before a larger change is built.
 
+- [Read status from the local IP first](plans/local-status-first.md) (implemented)
 - [Switches for the purifier's Eco, Pollen and Circulator modes](plans/mode-switches.md) (implemented)
 - [Make the cloud API calls follow the OpenAPI reference](plans/align-api-with-openapi.md) (implemented)
 
@@ -21,6 +22,7 @@ Living files, written before a larger change is built.
 
 One per non-trivial change, newest first.
 
+- [2026-11-26 Read status from the local IP first, with the cloud as fallback](changes/2026-11-26-local-status-first.md)
 - [2026-11-26 Answer HomeKit reads from the cache, never waiting on the network](changes/2026-11-26-fast-homekit-reads.md)
 - [2026-11-26 Keep the version in package.json and CHANGELOG.md in step with npm](changes/2026-11-26-version-in-repo.md)
 - [2026-11-26 Start the 1.0 release line](changes/2026-11-26-version-1-0.md)
