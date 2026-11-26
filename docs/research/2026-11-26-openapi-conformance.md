@@ -27,4 +27,4 @@ The reference file contains no real credentials: `mac`, `id`, `pw`, `ssid` and `
 
 - Bare token or `Bearer` on `set_control_info`.
 - Whether the refresh grant works on `/oauth2/token`.
-- Whether the terminal registration calls are needed, and where `terminalId` now comes from (the README's known limitation).
+- Whether the terminal registration calls are needed, and where `terminalId` now comes from (see Known limitations in the README).

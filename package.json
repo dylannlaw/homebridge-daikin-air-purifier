@@ -22,7 +22,8 @@
     "watch": "npm run build && npm link && nodemon",
     "build": "rimraf ./dist && tsc",
     "test": "npm run build && node --test 'test/*.test.mjs'",
-    "test:coverage": "npm run build && node -e \"require('fs').mkdirSync('coverage', { recursive: true })\" && node --enable-source-maps --test --experimental-test-coverage --test-coverage-include='dist/**' --test-coverage-include='src/**' --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info 'test/*.test.mjs'",
+    "test:coverage": "npm run build && node -e \"fs.mkdirSync('coverage',{recursive:true})\" && node --enable-source-maps --test --experimental-test-coverage --test-coverage-include=\"src/**\" --test-coverage-include=\"dist/**\" --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info \"test/*.test.mjs\"",
+    "homebridge:local": "bash scripts/local-homebridge.sh",
     "prepublishOnly": "npm run lint && npm test"
   },
   "keywords": [

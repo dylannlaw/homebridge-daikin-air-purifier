@@ -9,7 +9,7 @@ The process is: read the history, plan, build, verify, document, record, pull re
 ## 1. Read the history first
 
 1. [`docs/README.md`](docs/README.md): the index of plans, change notes and research.
-2. [`README.md`](README.md) and [`config.schema.json`](config.schema.json): the behaviour and settings users rely on.
+2. [`README.md`](README.md), the user guides in [`docs/guides/`](docs/guides/) and [`config.schema.json`](config.schema.json): the behaviour and settings users rely on.
 3. The code you will change, and its tests in `test/`.
 
 If an idea was rejected before, don't bring it back without a new reason, and write that reason down. If the request conflicts with an earlier decision, stop and raise it.
@@ -21,8 +21,8 @@ If the change is more than a small fix (a new service or characteristic, a new o
 ## 3. Make the change
 
 - Services live in `src/Service/`, one file per HomeKit service; the Daikin API and local calls live in `src/client.ts`.
-- A new setting goes in `config.schema.json`, `src/types.d.ts` and the README configuration section together, and is documented before it is used.
-- Security: the user's Daikin email, password, tokens, `clientSecret` and `terminalId` are secrets. Never log them or commit them, including in tests and docs; use obvious fakes. Keep API calls low (see "How API calls are kept low" in the README) so the user's account isn't rate-limited or locked.
+- A new setting goes in `config.schema.json`, `src/types.d.ts` and the README configuration section (advanced settings: [`docs/guides/how-it-works.md`](docs/guides/how-it-works.md#advanced-settings)) together, and is documented before it is used.
+- Security: the user's Daikin email, password, tokens, `clientSecret` and `terminalId` are secrets. Never log them or commit them, including in tests and docs; use obvious fakes. Keep API calls low (see [How API calls are kept low](docs/guides/how-it-works.md#how-api-calls-are-kept-low)) so the user's account isn't rate-limited or locked.
 - Keep dependencies few. Adding one needs a line in the change note explaining why nothing existing would do.
 
 ## 4. Verify
@@ -32,12 +32,13 @@ npm run lint && npm test
 ```
 
 - **Logic:** tests are in `test/*.test.mjs` and run against the built `dist/` with `node --test`. They must not call the real Daikin API or need a purifier.
-- **Real device:** control can only be confirmed against a real purifier and Daikin account. If you can't, say so in the change note.
+- **Real device:** control can only be confirmed against a real purifier and Daikin account. `npm run homebridge:local` runs the packed plugin in a private test Homebridge you can pair with an iPhone (see [`docs/guides/testing-locally.md`](docs/guides/testing-locally.md)). If you can't test on a device, say so in the change note.
 - Write down anything you could not check in the change note. Never claim a thing was verified if it wasn't.
 
 ## 5. Update the docs in the same change
 
-- **`README.md`**: always check it, and update it when anything it describes changes.
+- **`README.md`**: always check it, and update it when anything it describes changes. Keep it to what most users need (what works, limitations, installation, configuration) and put details in a guide.
+- **`docs/guides/`**: user guides linked from the README's "More documentation" table: [`how-it-works.md`](docs/guides/how-it-works.md) (login, tokens, API calls, advanced settings) and [`testing-locally.md`](docs/guides/testing-locally.md). Update the one whose subject changed. Link to them from the README with full `https://github.com/.../blob/master/...` URLs, because `docs/` isn't published to npm and relative links break there.
 - **`config.schema.json`**: when settings change.
 - **`CHANGELOG.md`**: kept for history up to 0.2.0. Don't edit it. Release notes for later versions are generated on each GitHub Release from the merged pull requests, so PR titles should read well to users.
 
@@ -50,5 +51,5 @@ Every change that isn't trivial gets `docs/changes/YYYY-MM-DD-short-name.md` fro
 - One logical change per PR, on a branch, never straight to `master`.
 - Fill in the checklist in [`.github/pull_request_template.md`](.github/pull_request_template.md).
 - Commit messages: `type(scope): summary` (`feat`, `fix`, `docs`, `test`, `chore`, `refactor`).
-- Every merge to `master` that changes what ships (`src/`, `config.schema.json`, dependencies, build config) publishes a new version to npm and a GitHub Release, through `.github/workflows/release.yml`. The patch number is set by CI, so don't edit the version in `package.json`, except to change MAJOR.MINOR (keep the patch at `.0`) when starting a new minor or major line. Treat every merge as a release.
+- Every merge to `master` that changes the plugin (`src/`, `config.schema.json`, `tsconfig.json`, or `package.json` beyond devDependencies and scripts) publishes a new version to npm and a GitHub Release, through `.github/workflows/release.yml`. Docs, README, tests, workflows and devDependency bumps never release on their own; `.github/scripts/should-release.sh` decides. The patch number is set by CI, so don't edit the version in `package.json`, except to change MAJOR.MINOR (keep the patch at `.0`) when starting a new minor or major line. Treat every merge as a release.
 - Never commit secrets, `.env` files or real account data.

@@ -50,7 +50,7 @@ Requested after the first version: when the Daikin login works, read status from
 - `test/helpers.mjs`, `test/client.auth.test.mjs`, `test/client.control.test.mjs`
 - `src/index.ts` (poll interval from the client)
 - `test/client.status.test.mjs` (new), `test/plugin.test.mjs`
-- `README.md` (What works, cache duration and rate limits, how status is read, required settings table, "How control works, end to end"), `config.schema.json` (layout, descriptions)
+- `README.md` (What works, cache duration and rate limits, required settings table), `docs/guides/how-it-works.md` (how status is read, "How control works, end to end"), `config.schema.json` (layout, descriptions)
 
 ## Verification
 
