@@ -2,6 +2,20 @@ import type { AccessoryConfig, API, HAP, Logging, Service } from 'homebridge';
 import Client from '../client.js';
 import { FanSpeed, HumidityLevel, Mode, PowerStatus } from '../constant.js';
 
+/**
+ * The "Humidify to" slider the Home app shows, in three steps for Daikin's Low, Standard and High. Daikin takes a
+ * strength, not a target humidity, so these percentages are labels for the steps, not a measured target.
+ */
+const TARGET_HUMIDITY: Record<string, number> = {
+  [HumidityLevel.Low]: 40,
+  [HumidityLevel.Standard]: 50,
+  [HumidityLevel.High]: 60,
+  [HumidityLevel.VeryHigh]: 60,
+};
+const TARGET_HUMIDITY_MIN = 40;
+const TARGET_HUMIDITY_MAX = 60;
+const TARGET_HUMIDITY_STEP = 10;
+
 class Humidifier {
   private humidifier: Service;
   private client: Client;
@@ -26,9 +40,21 @@ class Humidifier {
       this.setTargetHumidifierDehumidifierState.bind(this),
     );
 
+    // Strength as the "Humidify to" slider, the only humidifier slider the Home app shows.
     client.bindSet(
-      this.humidifier.getCharacteristic(api.hap.Characteristic.WaterLevel).onGet(this.getWaterLevel.bind(this)),
-      this.setWaterLevel.bind(this),
+      this.humidifier.getCharacteristic(api.hap.Characteristic.RelativeHumidityHumidifierThreshold)
+        .setProps({ minValue: TARGET_HUMIDITY_MIN, maxValue: TARGET_HUMIDITY_MAX, minStep: TARGET_HUMIDITY_STEP })
+        .onGet(this.getTargetHumidity.bind(this)),
+      this.setTargetHumidity.bind(this),
+    );
+
+    // Read-only in HomeKit: the tank level.
+    this.humidifier.getCharacteristic(api.hap.Characteristic.WaterLevel).onGet(this.getWaterLevel.bind(this));
+
+    // Strength as a percentage too. The Home app doesn't show it on a humidifier, but Eve and Siri use it.
+    client.bindSet(
+      this.humidifier.getCharacteristic(api.hap.Characteristic.RotationSpeed).onGet(this.getRotationSpeed.bind(this)),
+      this.setRotationSpeed.bind(this),
     );
 
     log.info('Initialize Humidifier');
@@ -48,7 +74,8 @@ class Humidifier {
     await this.client.setControlInfo({
       mode: airPurifier.mode,
       airvol: airPurifier.airvol,
-      pow: airPurifier.pow,
+      // Humidifying needs the purifier on; turning humidifying off leaves the power as it is.
+      pow: active === this.api.hap.Characteristic.Active.ACTIVE ? PowerStatus.On : airPurifier.pow,
       humd: active === this.api.hap.Characteristic.Active.ACTIVE ? HumidityLevel.Standard : HumidityLevel.Off,
     });
   }
@@ -104,18 +131,63 @@ class Humidifier {
     return Number(unitStatus.water_supply);
   }
 
-  async setWaterLevel(level) {
-    let speed = HumidityLevel.Off;
-    if (level >= 98) {
-      speed = HumidityLevel.VeryHigh;
-    } else if (level >= 60) {
-      speed = HumidityLevel.High;
-    } else if (level >= 35) {
-      speed = HumidityLevel.Standard;
-    } else if (level >= 15) {
-      speed = HumidityLevel.Low;
+  /** Humidifying strength as a slider: Low 33%, Standard 66%, High 100%. VeryHigh (Smart mode) also shows 100%. */
+  async getRotationSpeed() {
+    const { airPurifier } = await this.client.getUnitInfo();
+    switch (airPurifier.humd) {
+      case HumidityLevel.Low:
+        return 33;
+      case HumidityLevel.Standard:
+        return 66;
+      case HumidityLevel.High:
+      case HumidityLevel.VeryHigh:
+        return 100;
+      default:
+        return 0;
     }
-    await this.client.setControlInfo({ humd: speed });
+  }
+
+  /** 0% turns humidifying off; 1–33% is Low, 34–66% Standard, 67–100% High. */
+  async setRotationSpeed(value) {
+    const level = Number(value);
+    let humd = HumidityLevel.High;
+    if (level <= 0) {
+      humd = HumidityLevel.Off;
+    } else if (level <= 33) {
+      humd = HumidityLevel.Low;
+    } else if (level <= 66) {
+      humd = HumidityLevel.Standard;
+    }
+    await this.setStrength(humd);
+  }
+
+  /** The "Humidify to" slider: 40% is Low, 50% Standard, 60% High. While humidifying is off it shows Standard. */
+  async getTargetHumidity() {
+    const { airPurifier } = await this.client.getUnitInfo();
+    return TARGET_HUMIDITY[airPurifier.humd] ?? TARGET_HUMIDITY[HumidityLevel.Standard];
+  }
+
+  /** Below 45% is Low, below 55% Standard, and 55% or more High. */
+  async setTargetHumidity(value) {
+    const target = Number(value);
+    let humd = HumidityLevel.High;
+    if (target < 45) {
+      humd = HumidityLevel.Low;
+    } else if (target < 55) {
+      humd = HumidityLevel.Standard;
+    }
+    await this.setStrength(humd);
+  }
+
+  /** Sends a strength with the rest of the state. Any strength turns the purifier on; Off leaves the power as it is. */
+  private async setStrength(humd: HumidityLevel) {
+    const { airPurifier } = await this.client.getUnitInfo();
+    await this.client.setControlInfo({
+      mode: airPurifier.mode,
+      airvol: airPurifier.airvol,
+      pow: humd === HumidityLevel.Off ? airPurifier.pow : PowerStatus.On,
+      humd,
+    });
   }
 
   getService() {
@@ -125,6 +197,8 @@ class Humidifier {
   async identify() {
     const active = await this.getActive();
     const waterLevel = await this.getWaterLevel();
+    const strength = await this.getRotationSpeed();
+    const targetHumidity = await this.getTargetHumidity();
     const currentState = await this.getCurrentHumidifierDehumidifierState();
     const targetState = await this.getTargetHumidifierDehumidifierState();
 
@@ -132,6 +206,8 @@ class Humidifier {
     this.humidifier.getCharacteristic(this.api.hap.Characteristic.CurrentHumidifierDehumidifierState).updateValue(currentState);
     this.humidifier.getCharacteristic(this.api.hap.Characteristic.TargetHumidifierDehumidifierState).updateValue(targetState);
     this.humidifier.getCharacteristic(this.api.hap.Characteristic.WaterLevel).updateValue(waterLevel);
+    this.humidifier.getCharacteristic(this.api.hap.Characteristic.RotationSpeed).updateValue(strength);
+    this.humidifier.getCharacteristic(this.api.hap.Characteristic.RelativeHumidityHumidifierThreshold).updateValue(targetHumidity);
   }
 
 }

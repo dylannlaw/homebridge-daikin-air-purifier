@@ -46,6 +46,12 @@
       Turn it on or off, change the fan speed and switch the humidifier from the Home app, Siri, Control Center or a scene. Needs <a href="#cloud-mode-status-and-control">cloud mode</a>.
     </td>
     <td width="50%" valign="top">
+      <h3>💧 Humidifier control</h3>
+      The humidifier gets its own tile next to the purifier, to turn humidifying on or off and set its strength (Low, Standard or High). Needs <a href="#cloud-mode-status-and-control">cloud mode</a>.
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" valign="top">
       <h3>🍃 Eco, Pollen and Circulator modes</h3>
       Daikin's own modes each get a switch next to the purifier, so you can pick one with a tap. See <a href="#mode-switches">Mode switches</a>.
     </td>
@@ -141,7 +147,7 @@ Advanced settings (`clientId`, `uuid`, `code`, `refreshToken`) are described in 
 ## Using it in the Home app
 
 - **The purifier tile** turns the purifier on or off. Open it to set the fan speed and switch between Auto and Manual.
-- **The humidifier** has its own tile, shown with the purifier, to turn humidifying on or off (cloud mode).
+- **The humidifier** has its own tile, shown with the purifier, to turn humidifying on or off and set its strength with the **Humidify to** slider: 40% is Low, 50% Standard and 60% High (cloud mode). Daikin sets a strength, not a target humidity, so the percentages just name the three steps.
 - **Sensors** for temperature, humidity and air quality appear alongside it and can trigger automations.
 
 ### Mode switches
