@@ -31,12 +31,12 @@ class AirQualitySensor {
   }
 
   async getStatusActive() {
-    const { airPurifier } = await this.client.getUnitInfo();
+    const { airPurifier } = this.client.getCachedUnitInfo();
     return airPurifier.pow === PowerStatus.On;
   }
 
   async getAirQuality() {
-    const { sensorInfo } = await this.client.getUnitInfo();
+    const { sensorInfo } = this.client.getCachedUnitInfo();
     const pm25 = Number(sensorInfo.pm25);
     const dust = Number(sensorInfo.dust);
     const odor = Number(sensorInfo.odor);
@@ -61,17 +61,17 @@ class AirQualitySensor {
   }
 
   async getPm2_5Density() {
-    const { sensorInfo } = await this.client.getUnitInfo();
+    const { sensorInfo } = this.client.getCachedUnitInfo();
     return Number(sensorInfo.pm25);
   }
 
   async getSulphurDioxideDensity() {
-    const { sensorInfo } = await this.client.getUnitInfo();
+    const { sensorInfo } = this.client.getCachedUnitInfo();
     return Number(sensorInfo.odor);
   }
 
   async getVOCDensity() {
-    const { sensorInfo } = await this.client.getUnitInfo();
+    const { sensorInfo } = this.client.getCachedUnitInfo();
     return Number(sensorInfo.dust);
   }
 

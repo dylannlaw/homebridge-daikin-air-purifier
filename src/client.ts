@@ -201,6 +201,20 @@ class Client {
   }
 
   /**
+   * For HomeKit read handlers: returns the last known status at once and never waits on the network. A slow Daikin
+   * cloud (each attempt can take up to 10 seconds, then the local IP fallback) would otherwise make every read handler
+   * slow and Homebridge warn that the plugin slows it down. The poll keeps the cache fresh. Only when it is more
+   * than two poll intervals old (a failed change clears it, so the real state is read back) does this start a refresh
+   * in the background, shared with any already running; the margin keeps it from adding requests next to the poll.
+   */
+  getCachedUnitInfo(): UnitInfo {
+    if (Date.now() - this.unitInfoFetchedAt >= 2 * this.cacheDuration) {
+      this.getUnitInfo().catch((error) => this.log.debug('Background status refresh failed:', (error as Error).message));
+    }
+    return this.unitInfo;
+  }
+
+  /**
    * Reads status from the Daikin cloud when a login is configured, and from the purifier's local IP when the cloud
    * isn't configured or the cloud read fails.
    */

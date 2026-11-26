@@ -33,7 +33,7 @@ The steps, the same way the Daikin Smart App does them:
 Tokens and device credentials are saved to `<homebridge storage>/daikin-air-purifier-<name>.json` (readable only by the Homebridge user), and the port is kept until Homebridge restarts, so these steps aren't repeated on every change. Tokens are renewed automatically at the same token endpoint. If they expire, the plugin logs in again with your email and password. If the email or password is rejected, it stops retrying until Homebridge restarts, so your account isn't locked.
 
 ## How API calls are kept low
-- Status is read once per `cacheDuration` (from the cloud at most once a minute), and that one result is shared by every HomeKit request.
+- Status is read once per `cacheDuration` (from the cloud at most once a minute), and that one result is shared by every HomeKit request. HomeKit reads never wait for the network: they get the last result at once, so a slow or unreachable Daikin cloud can't make Homebridge warn that the plugin slows it down. Only if the status is more than two `cacheDuration`s old (for example after a change failed) does a read start a refresh, in the background.
 - The device credentials (`userinfo`) are fetched once and saved, and the port is read from the purifier once per restart, not on every change.
 - Apart from status refreshes, the Daikin cloud API is called only when you change a setting. Changes made within 1 second of each other (for example, dragging the fan speed slider) are sent as one request.
 - If the API responds with HTTP 429, the plugin stops calling it for 5 minutes.

@@ -2,6 +2,8 @@
 # push to master that touches code or tests. Documentation-only changes skip it. It never publishes.
 # release.yml calls this same workflow before it publishes, so a release is only ever made from code
 # that passed here. Keep the two paths-ignore lists the same.
+# On pull requests it also checks the version: a change to the plugin must raise the version in
+# package.json and add a CHANGELOG.md entry for it (.github/scripts/check-version.sh).
 name: Tests
 
 on:
@@ -42,6 +44,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0 # the pull request's base commit, for the version check
           persist-credentials: false
 
       - name: Use Node.js ${{ matrix.node-version }}
@@ -49,6 +52,12 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
+
+      - name: Check version and changelog
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: bash .github/scripts/check-version.sh "$BASE"
 
       - name: Install dependencies
         run: npm ci

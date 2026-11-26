@@ -22,12 +22,12 @@ class HumiditySensor {
   }
 
   async getCurrentRelativeHumidity () {
-    const { sensorInfo } = await this.client.getUnitInfo();
+    const { sensorInfo } = this.client.getCachedUnitInfo();
     return Number(sensorInfo.hhum);
   }
 
   async getStatusActive() {
-    const { airPurifier } = await this.client.getUnitInfo();
+    const { airPurifier } = this.client.getCachedUnitInfo();
     return airPurifier.pow === PowerStatus.On;
   }
 

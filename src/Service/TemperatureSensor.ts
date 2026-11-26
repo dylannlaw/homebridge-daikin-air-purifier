@@ -22,12 +22,12 @@ class TemperatureSensor {
   }
 
   async getCurrentTemperature () {
-    const { sensorInfo } = await this.client.getUnitInfo();
+    const { sensorInfo } = this.client.getCachedUnitInfo();
     return Number(sensorInfo.htemp);
   }
 
   async getStatusActive() {
-    const { airPurifier } = await this.client.getUnitInfo();
+    const { airPurifier } = this.client.getCachedUnitInfo();
     return airPurifier.pow === PowerStatus.On;
   }
 

@@ -35,7 +35,7 @@ class Humidifier {
   }
 
   async getActive() {
-    const { airPurifier } = await this.client.getUnitInfo();
+    const { airPurifier } = this.client.getCachedUnitInfo();
     if (airPurifier.pow === PowerStatus.On && airPurifier.humd !== HumidityLevel.Off) {
       return this.api.hap.Characteristic.Active.ACTIVE;
     } else {
@@ -44,7 +44,7 @@ class Humidifier {
   }
 
   async setActive(active) {
-    const { airPurifier } = await this.client.getUnitInfo();
+    const { airPurifier } = this.client.getCachedUnitInfo();
     await this.client.setControlInfo({
       mode: airPurifier.mode,
       airvol: airPurifier.airvol,
@@ -54,7 +54,7 @@ class Humidifier {
   }
 
   async getCurrentHumidifierDehumidifierState() {
-    const { airPurifier } = await this.client.getUnitInfo();
+    const { airPurifier } = this.client.getCachedUnitInfo();
 
     if (airPurifier.pow === PowerStatus.Off) {
       return this.api.hap.Characteristic.CurrentHumidifierDehumidifierState.INACTIVE;
@@ -66,7 +66,7 @@ class Humidifier {
   }
 
   async getTargetHumidifierDehumidifierState() {
-    const { airPurifier } = await this.client.getUnitInfo();
+    const { airPurifier } = this.client.getCachedUnitInfo();
     if (
       airPurifier.pow === PowerStatus.On &&
       airPurifier.mode === Mode.Smart &&
@@ -79,7 +79,7 @@ class Humidifier {
   }
 
   async setTargetHumidifierDehumidifierState(state) {
-    const { airPurifier } = await this.client.getUnitInfo();
+    const { airPurifier } = this.client.getCachedUnitInfo();
     if (state === this.api.hap.Characteristic.TargetHumidifierDehumidifierState.HUMIDIFIER_OR_DEHUMIDIFIER) {
       await this.client.setControlInfo({
         pow: PowerStatus.On,
@@ -100,7 +100,7 @@ class Humidifier {
   }
 
   async getWaterLevel() {
-    const { unitStatus } = await this.client.getUnitInfo();
+    const { unitStatus } = this.client.getCachedUnitInfo();
     return Number(unitStatus.water_supply);
   }
 

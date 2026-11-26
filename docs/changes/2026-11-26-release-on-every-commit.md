@@ -1,5 +1,7 @@
 # Release to npm on every commit to master
 
+> Superseded (versioning and changelog) by [Keep the version in package.json and CHANGELOG.md in step with npm](2026-11-26-version-in-repo.md)
+
 ## Summary
 
 Every push to `master` that changes what ships now builds, tests and publishes a new version to npm, and creates a matching tag and GitHub Release. Nobody bumps the version by hand any more.

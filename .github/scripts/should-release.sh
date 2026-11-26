@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
 # Decides whether the commits between BEFORE and HEAD change the plugin that users install.
-# Prints "release=true" or "release=false" and the reason. Used by .github/workflows/release.yml.
+# Prints "release=true" or "release=false" and the reason. "release=true" means the change needs a
+# version bump: check-version.sh (on pull requests) requires one, and release.yml fails if a plugin
+# change reaches master without one. The version itself is what triggers a release.
 #
-# Releases for:
+# A version bump is needed for:
 # - src/**              the plugin code
 # - config.schema.json  the settings form users see in the Homebridge UI
 # - tsconfig.json       how the plugin code is compiled
 # - package.json        only when something other than devDependencies, scripts or version changed
 #                       (e.g. runtime dependencies, engines, main), so dev tool bumps don't release
 # Everything else (docs, README, tests, lint config, workflows, package-lock.json, which isn't
-# published) never releases on its own.
+# published) doesn't need one.
 #
 # Usage: should-release.sh BEFORE   (BEFORE may be empty or all zeros; then HEAD^ is used)
 set -euo pipefail

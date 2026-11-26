@@ -137,6 +137,43 @@ describe('reading status from the purifier', () => {
   });
 });
 
+describe('answering HomeKit reads without waiting on the network', () => {
+  test('returns the cached status at once, even while a refresh is stuck', async () => {
+    mock.timers.enable({ apis: ['Date'], now: 1_000_000 });
+    let release;
+    const server = mockServers({ [UNIT]: () => new Promise((resolve) => {
+      release = () => resolve([200, 'ret=OK']);
+    }) });
+    const { client } = makeClient();
+    // Nothing fetched yet and the purifier hangs: the read still answers synchronously with the defaults.
+    const info = client.getCachedUnitInfo();
+    assert.equal(info.airPurifier.pow, '0');
+    await settle();
+    assert.equal(server.count(UNIT), 1);
+    // A second read joins the stuck refresh instead of starting another.
+    client.getCachedUnitInfo();
+    await settle();
+    assert.equal(server.count(UNIT), 1);
+    release();
+    await settle();
+  });
+
+  test('shows the polled status and makes no request while the cache is within two poll intervals', async () => {
+    mock.timers.enable({ apis: ['Date'], now: 1_000_000 });
+    const server = mockServers();
+    const { client } = makeClient({ ...LOCAL_CONFIG, cacheDuration: 60 });
+    await client.getUnitInfo(true);
+    mock.timers.tick(119_000);
+    assert.equal(client.getCachedUnitInfo().airPurifier.pow, '1');
+    await settle();
+    assert.equal(server.count(UNIT), 1);
+    mock.timers.tick(2_000);
+    client.getCachedUnitInfo();
+    await settle();
+    assert.equal(server.count(UNIT), 2);
+  });
+});
+
 describe('choosing local-only mode or control', () => {
   test('is local-only with just the host, and says so in the log', () => {
     mockServers();
