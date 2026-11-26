@@ -20,6 +20,8 @@ Every change you make in HomeKit ends in one `https://api.daikinsmartdb.jp/clean
 | `port` | The `port` setting, or the purifier's `basic_info` (step 5) |
 | `pow`, `mode`, `airvol`, `humd` | The purifier's current state, with your change applied |
 
+The mode switches send `mode` 2 (Eco), 3 (Pollen) or 5 (Circulator) with `airvol=0` and power on, and `mode` 1 (Smart, HomeKit's Auto) when the current mode's switch is turned off. These mode numbers come from the plugin's original code and haven't been confirmed against the [API reference](#api-reference), which doesn't map them yet.
+
 The steps, the same way the Daikin Smart App does them:
 1. Start a login session at `https://prod-dsioti.daikinsmartdb.jp/dsioti/oauth2/authorize` (OAuth with PKCE).
 2. Send your email and password to `https://prod-dsioti.daikinsmartdb.jp/dsioti/oauth2/auth`, which returns an authorization code.

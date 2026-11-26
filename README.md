@@ -51,6 +51,12 @@
     </td>
   </tr>
   <tr>
+    <td colspan="2" valign="top">
+      <h3>🍃 Eco, Pollen and Circulator modes</h3>
+      Daikin's own modes each get a switch next to the purifier, so you can pick one with a tap. See <a href="#mode-switches">Mode switches</a>.
+    </td>
+  </tr>
+  <tr>
     <td width="50%" valign="top">
       <h3>🔁 Cloud first, local fallback</h3>
       With your Daikin account set, status comes from the Daikin cloud. Add the purifier's local IP and it takes over whenever the cloud can't be reached.
@@ -130,6 +136,7 @@ Only `host`, the purifier's local IP, is required. Leave the Daikin account sett
 |---|---|---|
 | `host` | **Required in local mode**; optional fallback in cloud mode | The purifier's local IP address, shown in the Daikin Smart App under the purifier's **Model information**. Give it a fixed IP in your router so it doesn't change. |
 | `cacheDuration` | Optional (default 60) | How often, in seconds, status is fetched. See [How often it checks, and rate limits](#how-often-it-checks-and-rate-limits). |
+| `modeSwitches` | Optional (default all three) | Which Daikin modes get a switch in HomeKit: `eco`, `pollen`, `circulator`. `[]` shows none. See [Mode switches](#mode-switches). |
 | `username`, `password` | **Required for control**; also cloud status | The email and password you sign in to the [Daikin Smart App](https://apps.apple.com/app/id564109247) with. |
 | `clientSecret` | **Required for control**; also cloud status | The `client_secret` in the body of the app's `https://prod-dsioti.daikinsmartdb.jp/dsioti/oauth2/token` request. |
 | `terminalId` | **Required for control** | The `terminalid` query parameter of the app's `https://api.daikinsmartdb.jp/cleaner/set_control_info` request, sent when you change a setting in the app. Cloud status works without it. |
@@ -142,6 +149,16 @@ Advanced settings (`clientId`, `uuid`, `code`, `refreshToken`) are described in 
 - **The purifier tile** turns the purifier on or off. Open it to set the fan speed and switch between Auto and Manual.
 - **The humidifier** has its own tile, shown with the purifier, to turn humidifying on or off and set its strength with a slider: up to 33% is Low, up to 66% Standard, and above that High (cloud mode). 0% turns humidifying off.
 - **Sensors** for temperature, humidity and air quality appear alongside it and can trigger automations.
+
+### Mode switches
+
+HomeKit's Air Purifier only has Auto and Manual, so Daikin's Eco, Pollen and Circulator modes each get a switch, shown with the purifier in the Home app. Only the switch for the current mode is on:
+
+- Turning one on puts the purifier in that mode (turning it on if it's off) and turns the others off. In these modes the purifier picks its own fan speed.
+- Turning off the current mode's switch puts the purifier back in Auto.
+- Moving the fan speed slider switches to manual fan speed, so the mode switches turn off.
+
+Each change is one request, like any other control. In local mode, or without the control settings, the switches only show the current mode. Use `modeSwitches` to choose which switches appear.
 
 ## Limitations
 

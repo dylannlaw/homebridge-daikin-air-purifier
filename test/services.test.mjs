@@ -8,6 +8,7 @@ const { default: AirQualitySensor } = await import('../dist/Service/AirQualitySe
 const { default: HumiditySensor } = await import('../dist/Service/HumiditySensor.js');
 const { default: TemperatureSensor } = await import('../dist/Service/TemperatureSensor.js');
 const { default: AccessoryInformation } = await import('../dist/Service/AccessoryInformation.js');
+const { default: ModeSwitch, enabledModes } = await import('../dist/Service/ModeSwitch.js');
 
 const C = hap.Characteristic;
 const api = { hap };
@@ -319,13 +320,89 @@ describe('Accessory information', () => {
   });
 });
 
+describe('mode switches', () => {
+  const makeSwitches = (status, config = LOCAL_CONFIG) => {
+    const client = fakeClient(status);
+    const switches = new ModeSwitch(client, hap, makeLog(), config, api);
+    const byName = Object.fromEntries(switches.getServices().map((s) => [s.displayName, s]));
+    return { client, switches, byName };
+  };
+  const on = (service) => service.getCharacteristic(C.On);
+
+  test('shows Eco, Pollen and Circulator by default, each with its own subtype and name', () => {
+    const services = makeSwitches().switches.getServices();
+    assert.deepEqual(services.map((s) => s.displayName), ['Eco', 'Pollen', 'Circulator']);
+    assert.deepEqual(services.map((s) => s.subtype), ['mode-eco', 'mode-pollen', 'mode-circulator']);
+    assert.deepEqual(services.map((s) => s.getCharacteristic(C.ConfiguredName).value), ['Eco', 'Pollen', 'Circulator']);
+    assert.ok(services.every((s) => s.UUID === hap.Service.Switch.UUID));
+  });
+
+  test('modeSwitches picks which switches exist, and an empty list gives none', () => {
+    assert.deepEqual(enabledModes(['circulator', 'eco']), ['eco', 'circulator']);
+    assert.deepEqual(enabledModes(['eco', 'turbo']), ['eco']);
+    assert.deepEqual(enabledModes([]), []);
+    assert.deepEqual(enabledModes(undefined), ['eco', 'pollen', 'circulator']);
+    const log = makeLog();
+    assert.deepEqual(enabledModes('eco', log), ['eco', 'pollen', 'circulator']);
+    assert.ok(log.has('warn', 'modeSwitches should be a list'));
+    assert.equal(makeSwitches({}, { ...LOCAL_CONFIG, modeSwitches: [] }).switches.getServices().length, 0);
+  });
+
+  test('only the switch for the current mode reads on, and only while powered on', async () => {
+    const { switches } = makeSwitches({ airPurifier: { pow: '1', mode: '2' } });
+    assert.equal(await switches.isOn('2'), true);
+    assert.equal(await switches.isOn('3'), false);
+    assert.equal(await switches.isOn('5'), false);
+    const off = makeSwitches({ airPurifier: { pow: '0', mode: '2' } }).switches;
+    assert.equal(await off.isOn('2'), false);
+  });
+
+  test('turning one on sends one change with that mode and turns the others off', async () => {
+    const { client, switches, byName } = makeSwitches({ airPurifier: { pow: '0', mode: '3', humd: '2' } });
+    on(byName.Pollen).updateValue(true);
+    await switches.setOn('eco', true);
+    assert.equal(client.setControlInfo.mock.callCount(), 1);
+    assert.deepEqual(lastSet(client), { pow: '1', mode: '2', airvol: '0', humd: '2' });
+    assert.equal(on(byName.Pollen).value, false);
+    assert.equal(on(byName.Circulator).value, false);
+  });
+
+  test('turning off the current mode goes back to Auto (Smart mode)', async () => {
+    const { client, switches } = makeSwitches({ airPurifier: { pow: '1', mode: '5', airvol: '0', humd: '3' } });
+    await switches.setOn('circulator', false);
+    assert.deepEqual(lastSet(client), { pow: '1', mode: '1', airvol: '0', humd: '3' });
+  });
+
+  test('turning off a mode the purifier is not in sends nothing', async () => {
+    const { client, switches } = makeSwitches({ airPurifier: { pow: '1', mode: '2' } });
+    await switches.setOn('pollen', false);
+    assert.equal(client.setControlInfo.mock.callCount(), 0);
+  });
+
+  test('identify shows the polled mode without fetching again', async () => {
+    const { client, switches, byName } = makeSwitches({ airPurifier: { pow: '1', mode: '3' } });
+    await switches.identify();
+    assert.deepEqual([on(byName.Eco).value, on(byName.Pollen).value, on(byName.Circulator).value], [false, true, false]);
+    assert.ok(client.getUnitInfo.mock.calls.every((call) => call.arguments[0] !== true));
+  });
+
+  test('links the switches to the purifier service', () => {
+    const client = fakeClient();
+    const purifier = new AirPurifier(client, hap, makeLog(), LOCAL_CONFIG, api).getService();
+    const switches = new ModeSwitch(client, hap, makeLog(), LOCAL_CONFIG, api, purifier).getServices();
+    assert.deepEqual(purifier.linkedServices, switches);
+  });
+});
+
 describe('local-only mode in the tiles', () => {
   test('every control is read-only and has no set handler', () => {
     mockServers();
     const { client } = makeClient(LOCAL_CONFIG);
     const purifier = new AirPurifier(client, hap, makeLog(), LOCAL_CONFIG, api).getService();
     const humidifier = new Humidifier(client, hap, makeLog(), LOCAL_CONFIG, api).getService();
+    const modeSwitches = new ModeSwitch(client, hap, makeLog(), LOCAL_CONFIG, api).getServices();
     const controls = [
+      ...modeSwitches.map((s) => s.getCharacteristic(C.On)),
       purifier.getCharacteristic(C.Active), purifier.getCharacteristic(C.TargetAirPurifierState), purifier.getCharacteristic(C.RotationSpeed),
       humidifier.getCharacteristic(C.Active), humidifier.getCharacteristic(C.TargetHumidifierDehumidifierState),
       humidifier.getCharacteristic(C.RotationSpeed),

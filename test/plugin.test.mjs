@@ -33,13 +33,25 @@ describe('plugin', () => {
     assert.equal(typeof api.registerAccessory.mock.calls[0].arguments[1], 'function');
   });
 
-  test('provides the information, purifier, humidifier and three sensor services', async () => {
+  test('provides the information, purifier, humidifier, three sensor and three mode switch services', async () => {
     const { accessory } = await startAccessory();
     const types = accessory.getServices().map((s) => s.UUID);
     assert.deepEqual(types, [
       hap.Service.AccessoryInformation.UUID, hap.Service.AirPurifier.UUID, hap.Service.HumidifierDehumidifier.UUID,
       hap.Service.AirQualitySensor.UUID, hap.Service.HumiditySensor.UUID, hap.Service.TemperatureSensor.UUID,
+      hap.Service.Switch.UUID, hap.Service.Switch.UUID, hap.Service.Switch.UUID,
     ]);
+  });
+
+  test('leaves out the mode switches when modeSwitches is empty', async () => {
+    const { accessory } = await startAccessory({ ...LOCAL_CONFIG, modeSwitches: [] });
+    assert.ok(accessory.getServices().every((s) => s.UUID !== hap.Service.Switch.UUID));
+  });
+
+  test('shows the polled mode on the switches after startup', async () => {
+    const { accessory } = await startAccessory();
+    const switches = accessory.getServices().filter((s) => s.UUID === hap.Service.Switch.UUID);
+    assert.ok(switches.every((s) => typeof s.getCharacteristic(C.On).value === 'boolean'));
   });
 
   test('reads the purifier once at startup and shows the values in HomeKit', async () => {

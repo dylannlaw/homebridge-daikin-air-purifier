@@ -81,6 +81,17 @@
         "type": "string",
         "description": "Alternative to email and password: a refresh_token captured from the Daikin Smart App."
       },
+      "modeSwitches": {
+        "title": "Mode switches",
+        "description": "Which Daikin modes get a switch in HomeKit. Turning one on puts the purifier in that mode; turning it off goes back to Auto. Untick all to show none.",
+        "type": "array",
+        "uniqueItems": true,
+        "default": ["eco", "pollen", "circulator"],
+        "items": {
+          "type": "string",
+          "enum": ["eco", "pollen", "circulator"]
+        }
+      },
       "model": {
         "title": "Model",
         "type": "string",
@@ -97,6 +108,15 @@
     "name",
     "accessory",
     "cacheDuration",
+    {
+      "key": "modeSwitches",
+      "type": "checkboxes",
+      "titleMap": [
+        { "value": "eco", "name": "Eco" },
+        { "value": "pollen", "name": "Pollen" },
+        { "value": "circulator", "name": "Circulator" }
+      ]
+    },
     {
       "type": "fieldset",
       "title": "Local mode (status only, no control)",
