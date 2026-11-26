@@ -90,7 +90,7 @@ No new secrets or login changes. Each mode change is one `set_control_info` call
   - In read-only mode the switches have no write permission.
   - Refreshing makes no extra `getUnitInfo` request.
 - **Mode values, on the user's purifier:** set each mode in the Daikin Smart App, then read `mode` from `http://<purifier IP>/cleaner/get_unit_info` on the local network. This needs no cloud call or `terminalId`. Fix `src/constant.ts` if any value differs.
-- **Real device:** check with `npm run homebridge:local` and an iPhone that the switches appear on the purifier's detail page, that only one is on at a time, and that the Siri names work. Control can only be confirmed with working `clientSecret` and `terminalId`, which the current app makes hard to capture (see the README's Known limitations). If control can't be tested, the change note will say so.
+- **Real device:** check with `npm run homebridge:local` and an iPhone that the switches appear on the purifier's detail page, that only one is on at a time, and that the Siri names work. Control can only be confirmed with working `clientSecret` and `terminalId`, which the current app makes hard to capture (see the README's Limitations). If control can't be tested, the change note will say so.
 
 ## Open questions
 

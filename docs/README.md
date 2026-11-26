@@ -22,6 +22,7 @@ Living files, written before a larger change is built.
 One per non-trivial change, newest first.
 
 - [2026-11-26 Switches for the purifier's Eco, Pollen and Circulator modes](changes/2026-11-26-mode-switches.md)
+- [2026-11-26 Redesign the README as a step-by-step guide](changes/2026-11-26-readme-redesign.md)
 - [2026-11-26 Describe the settings as cloud mode and local mode](changes/2026-11-26-cloud-and-local-modes.md)
 - [2026-11-26 Guide to capturing credentials with mitmproxy](changes/2026-11-26-mitmproxy-capture-guide.md)
 - [2026-11-26 Follow the OpenAPI reference for API calls, and read status from the cloud](changes/2026-11-26-openapi-conformance-and-coverage.md)

@@ -31,7 +31,7 @@ No new dependencies.
 
 ## Docs updated
 
-- `README.md`: the "What works" row, the `modeSwitches` row in "All settings", and a new "Mode switches" section.
+- `README.md` (the redesigned one): an "Eco, Pollen and Circulator modes" card in "What it can do", the `modeSwitches` row in "All settings", and a "Mode switches" section under "Using it in the Home app".
 - `docs/guides/how-it-works.md`: what the switches send in `set_control_info`, and that the mode numbers are unconfirmed.
 - `docs/plans/mode-switches.md`: marked approved and implemented.
 
@@ -39,7 +39,7 @@ No new dependencies.
 
 - ✅ `npm run lint && npm test`: 236 tests pass, including 11 new or changed ones for the mode switches.
 - ❌ **Mode numbers:** not checked on a purifier. Eco 2, Pollen 3 and Circulator 5 come from the original `src/constant.ts`, and the OpenAPI reference says `mode` values aren't mapped yet. To check, set each mode in the Daikin Smart App and read `mode` from `http://<purifier IP>/cleaner/get_unit_info`.
-- ❌ **Real device:** not checked in the Home app (`npm run homebridge:local`). That includes where the linked switches appear, Siri names, and whether the Daikin cloud accepts `airvol=0` in these modes. Control also needs a working `clientSecret` and `terminalId`, which can't currently be captured (see the README's Known limitations).
+- ❌ **Real device:** not checked in the Home app (`npm run homebridge:local`). That includes where the linked switches appear, Siri names, and whether the Daikin cloud accepts `airvol=0` in these modes. Control also needs a working `clientSecret` and `terminalId`, which can't currently be captured (see the README's Limitations).
 
 ## Follow-ups
 
