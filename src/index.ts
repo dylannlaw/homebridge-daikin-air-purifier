@@ -39,7 +39,8 @@ class DaikinAirPurifier implements AccessoryPlugin {
   constructor(log: Logging, config: AccessoryConfig, api: API) {
     this.log = log;
     this.client = new Client(log, config, api.user.storagePath(), api.hap);
-    this.pollInterval = Math.max(Number(config.cacheDuration) || 60, 15) * 1000;
+    // cacheDuration, with the minimums the client applies for local and cloud reads.
+    this.pollInterval = this.client.cacheDuration;
     this.accessoryInformation = new AccessoryInformation(hap, log, config, api);
     this.airPurifier = new AirPurifier(this.client, hap, log, config, api);
     this.humidifier = new Humidifier(this.client, hap, log, config, api);
@@ -58,7 +59,7 @@ class DaikinAirPurifier implements AccessoryPlugin {
     this.timer = null;
 
     try {
-      // One request to the device per poll. The identify() calls below read the cached result.
+      // One request per poll, to the Daikin cloud or the purifier. The identify() calls below read the cached result.
       await this.client.getUnitInfo(true);
       await this.airPurifier.identify();
       await this.humidifier.identify();

@@ -1,0 +1,354 @@
+openapi: 3.0.3
+info:
+  title: Daikin Smart DB (Air Cleaner) Unofficial API
+  version: 0.1.0
+  description: |
+    Unofficial, reverse-engineered from captured app traffic (Nov 2026). Not affiliated with Daikin.
+
+    **Flow**
+    1. `POST /dsioti/oauth2/auth` -> auth code is returned in the `location` response header.
+    2. `POST /dsioti/oauth2/token` -> access/refresh tokens (PKCE, `code_verifier`).
+    3. `GET /dsioti/oauth2/userinfo` -> `l_user_id` / `l_password`; these are the `id` / `spw` query params
+       used by every device endpoint.
+    4. `GET /dsiot/local_api_key`, `GET /common/set_device_token`, `GET /dsiot/terminals/{uuid}/device_token`
+       register the terminal.
+    5. Device endpoints (`/cleaner/*`, `/common/*`) read and control the unit.
+
+    **Text response format:** device endpoints return `text/plain` like
+    `ret=OK,key=value,key=value`. Some values are URL-encoded nested lists
+    (e.g. `ctrl_info=pow%3D1%2Cmode%3D0`). Decode these recursively.
+
+    **Authorization inconsistency:** some endpoints were observed with `Bearer <token>`, others with the bare
+    token (capture was masked, so the prefix may have been stripped). Test both.
+servers:
+  - url: https://api.daikinsmartdb.jp
+    description: Device API
+  - url: https://prod-dsioti.daikinsmartdb.jp
+    description: OAuth2 server (used only by the /dsioti/oauth2/* paths)
+tags:
+  - name: OAuth
+  - name: Registration
+  - name: Device
+paths:
+  /dsioti/oauth2/auth:
+    post:
+      tags: [OAuth]
+      summary: Log in and obtain an authorization code
+      servers:
+        - url: https://prod-dsioti.daikinsmartdb.jp
+      parameters:
+        - name: Origin
+          in: header
+          required: false
+          description: Sent by the web UI (https://prod-deneb-ui.daikinsmartdb.jp). Likely needed for CORS only.
+          schema: { type: string }
+        - name: Referer
+          in: header
+          required: false
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password, state, uuid]
+              properties:
+                username: { type: string }
+                password: { type: string, format: password }
+                state: { type: string, description: "OAuth state value, echoed back in the callback" }
+                uuid: { type: string, description: Terminal/client UUID }
+      responses:
+        '200':
+          description: Empty JSON body. The code is in the `location` header.
+          headers:
+            location:
+              description: "`daikinsmartapp://callback?code=<code>&state=<state>`"
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { type: object }
+  /dsioti/oauth2/token:
+    post:
+      tags: [OAuth]
+      summary: Exchange authorization code for tokens (PKCE)
+      servers:
+        - url: https://prod-dsioti.daikinsmartdb.jp
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [grant_type, code, redirect_uri, client_id, client_secret, code_verifier]
+              properties:
+                grant_type:
+                  type: string
+                  enum: [authorization_code]
+                  description: A refresh_token grant is likely supported but was not captured.
+                code: { type: string }
+                redirect_uri: { type: string, example: 'daikinsmartapp://callback' }
+                client_id: { type: string }
+                client_secret: { type: string }
+                code_verifier: { type: string }
+      responses:
+        '200':
+          description: Token set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+  /dsioti/oauth2/userinfo:
+    get:
+      tags: [OAuth]
+      summary: Get user info and device credentials
+      servers:
+        - url: https://prod-dsioti.daikinsmartdb.jp
+      parameters:
+        - name: access_token
+          in: query
+          required: true
+          description: Access token passed in the query string (not as a header).
+          schema: { type: string }
+      responses:
+        '200':
+          description: User info. `l_user_id` and `l_password` are the `id` / `spw` for device calls.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInfo'
+  /dsiot/local_api_key:
+    get:
+      tags: [Registration]
+      summary: Get local API key
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Local API key
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rsc: { type: integer, example: 2000 }
+                  local_api_key: { type: string }
+  /common/set_device_token:
+    get:
+      tags: [Registration]
+      summary: Register a device (push) token for the unit
+      security: [{ rawTokenAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/Spw'
+        - $ref: '#/components/parameters/Port'
+        - name: device
+          in: query
+          required: true
+          description: Device type code (observed `I`, likely iOS).
+          schema: { type: string, example: I }
+        - name: device_token
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          $ref: '#/components/responses/RetOk'
+  /dsiot/terminals/{uuid}/device_token:
+    get:
+      tags: [Registration]
+      summary: Get device token for a terminal
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Device token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rsc: { type: integer, example: 2000 }
+                  device_token: { type: string }
+  /cleaner/set_control_info:
+    get:
+      tags: [Device]
+      summary: Set air cleaner control state
+      description: State-changing call made with GET.
+      security: [{ rawTokenAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/Spw'
+        - $ref: '#/components/parameters/Port'
+        - name: terminalid
+          in: query
+          required: true
+          schema: { type: string }
+        - name: pow
+          in: query
+          required: true
+          description: Power (0 = off, 1 = on, inferred)
+          schema: { type: integer, example: 1 }
+        - name: mode
+          in: query
+          required: true
+          description: Operating mode (meaning of values not yet mapped; see get_model_info `sup_mode`)
+          schema: { type: integer, example: 0 }
+        - name: airvol
+          in: query
+          required: true
+          description: Air volume (see `sup_airvol`)
+          schema: { type: integer, example: 0 }
+        - name: humd
+          in: query
+          required: true
+          description: Humidification level (see `sup_humd*`)
+          schema: { type: integer, example: 0 }
+      responses:
+        '200':
+          $ref: '#/components/responses/RetOk'
+  /cleaner/get_unit_info:
+    get:
+      tags: [Device]
+      summary: Get current control state, sensors, status and settings
+      security: [{ rawTokenAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/Spw'
+        - $ref: '#/components/parameters/Port'
+      responses:
+        '200':
+          description: |
+            Text. Groups `ctrl_info`, `sensor_info`, `unit_status`, `dev_setting` are URL-encoded `k=v,k=v` lists.
+            - ctrl_info: pow, mode, airvol, humd
+            - sensor_info: htemp, hhum, pm25, dust, odor
+            - unit_status: filter, strmr_cln, water_supply, unit_err
+            - dev_setting: led_dsp, d_sns, c_lock, streamer, act_ion, buzzer, turbo, eco_moni
+          content:
+            text/plain:
+              schema: { type: string }
+              example: >-
+                ret=OK,ctrl_info=pow%3D1%2Cmode%3D0%2Cairvol%3D0%2Chumd%3D0,sensor_info=htemp%3D22.0%2Chhum%3D60%2Cpm25%3D0%2Cdust%3D0%2Codor%3D0,unit_status=filter%3D0%2Cstrmr_cln%3D1%2Cwater_supply%3D0%2Cunit_err%3D0000,dev_setting=led_dsp%3D1%2Cd_sns%3D0%2Cc_lock%3D0%2Cstreamer%3D0%2Cact_ion%3D1%2Cbuzzer%3D1%2Cturbo%3D-%2Ceco_moni%3D1
+  /common/basic_info:
+    get:
+      tags: [Device]
+      summary: Get basic device info
+      security: [{ rawTokenAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/Spw'
+        - $ref: '#/components/parameters/Port'
+      responses:
+        '200':
+          description: >-
+            Text key=value list: type, ver, location, mac, name, icon, method, port, id, pw, reg, pow, err,
+            adp_kind, ssid, led, alertm, on_flg, alerts, grp_name, en_grp, en_hol, instform.
+            Contains device credentials (id, pw); treat as secret.
+          content:
+            text/plain:
+              schema: { type: string }
+              example: ret=OK,type=cleaner,ver=3_17_0,location=0,mac=<mac>,name=<device_name>,icon=0,method=polling,port=30050,id=<id>,pw=<pw>,reg=jp,pow=1,err=0,adp_kind=4,ssid=<ssid>,led=1,alertm=255,on_flg=0,alerts=0,grp_name=,en_grp=0,en_hol=0,instform=
+  /cleaner/get_linkage_info:
+    get:
+      tags: [Device]
+      summary: Get air-conditioner linkage info
+      security: [{ rawTokenAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/Spw'
+        - $ref: '#/components/parameters/Port'
+      responses:
+        '200':
+          description: 'Text key=value list: AcLink, LinkMac, AcLinkSts, linkcomm_err.'
+          content:
+            text/plain:
+              schema: { type: string }
+              example: ret=OK,AcLink=0,LinkMac=000000000000,AcLinkSts=0,linkcomm_err=0
+  /common/get_datetime:
+    get:
+      tags: [Device]
+      summary: Get device date/time
+      security: [{ rawTokenAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/Spw'
+        - $ref: '#/components/parameters/Port'
+      responses:
+        '200':
+          description: 'Text key=value list: sta, cur (yyyy/MM/dd HH:mm:ss), reg, tmdf (UTC offset in minutes), dst, zone.'
+          content:
+            text/plain:
+              schema: { type: string }
+              example: ret=OK,sta=0,cur=2026/11/26 19:46:56,reg=jp,tmdf=540,dst=1,zone=0
+  /cleaner/get_model_info:
+    get:
+      tags: [Device]
+      summary: Get supported features (capability bitmasks)
+      security: [{ rawTokenAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/Spw'
+        - $ref: '#/components/parameters/Port'
+      responses:
+        '200':
+          description: >-
+            Text key=value list. `sup_*` values are hex bitmasks of supported options
+            (sup_mode, sup_airvol, sup_humd0..5, sup_sensor, sup_devset); `en_*` are feature flags.
+          content:
+            text/plain:
+              schema: { type: string }
+              example: ret=OK,sup_mode=003F,sup_airvol=2F,sup_humd0=0F,sup_humd1=10,sup_humd2=0F,sup_humd3=0F,sup_humd4=10,sup_humd5=0F,sup_sensor=07FF,sup_devset=BF,en_scdltmr=1,en_OpeOpt=00,en_aclink=0,streamer_type=0,en_dust_filter=0
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: "`Authorization: Bearer <access_token>`"
+    rawTokenAuth:
+      type: apiKey
+      in: header
+      name: authorization
+      description: Observed as the bare access token (may also accept Bearer prefix; unverified).
+  parameters:
+    Id:
+      name: id
+      in: query
+      required: true
+      description: Device id = `l_user_id` from userinfo.
+      schema: { type: string }
+    Spw:
+      name: spw
+      in: query
+      required: true
+      description: Device password = `l_password` from userinfo.
+      schema: { type: string }
+    Port:
+      name: port
+      in: query
+      required: true
+      schema: { type: integer, example: 30050 }
+  responses:
+    RetOk:
+      description: Text `ret=OK` on success.
+      content:
+        text/plain:
+          schema: { type: string, example: ret=OK }
+  schemas:
+    TokenResponse:
+      type: object
+      properties:
+        token_type: { type: string, example: Bearer }
+        id_token: { type: string }
+        access_token: { type: string }
+        refresh_token: { type: string }
+        expires_in: { type: integer, example: 3600 }
+    UserInfo:
+      type: object
+      properties:
+        rsc: { type: integer, example: 2000 }
+        uid: { type: string }
+        l_user_id: { type: string }
+        l_password: { type: string }

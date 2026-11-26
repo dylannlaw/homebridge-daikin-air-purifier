@@ -4,6 +4,7 @@ import axios, { AxiosError } from 'axios';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { URLSearchParams } from 'url';
 import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
@@ -13,19 +14,43 @@ export const HOST = '192.168.1.156';
 export const AUTH = 'prod-dsioti.daikinsmartdb.jp/dsioti/oauth2';
 export const API = 'api.daikinsmartdb.jp';
 
+// Route keys for the endpoints in docs/reference/daikin-smart-api.openapi.yaml. The code exchange and the token
+// renewal share POST /dsioti/oauth2/token, so the mock tells them apart by grant_type (see mockServers).
+export const LOGIN = `${AUTH}/token#authorization_code`;
+export const TOKEN = `${AUTH}/token#refresh_token`;
+export const USERINFO = `${AUTH}/userinfo`;
+export const SIGNIN_KEY = `${AUTH}/auth`;
+export const SET = `${API}/cleaner/set_control_info`;
+export const CLOUD_UNIT = `${API}/cleaner/get_unit_info`;
+export const LOCAL_UNIT = `${HOST}/cleaner/get_unit_info`;
+export const DEVICE_ID = 'FAKE_L_USER_ID';
+export const DEVICE_PASSWORD = 'FAKE_L_PASSWORD';
+
 export const UNIT_INFO = 'ret=OK,ctrl_info=pow%3d1%2cmode%3d0%2cairvol%3d3%2chumd%3d2,' +
   'sensor_info=htemp%3d26.0%2chhum%3d64%2cpm25%3d2%2cdust%3d1%2codor%3d3,' +
   'unit_status=filter%3d0%2cstrmr_cln%3d1%2cwater_supply%3d1%2cunit_err%3d0000';
+
+// The same shape from the Daikin cloud, with different values so tests can tell which one was read.
+export const CLOUD_UNIT_INFO = 'ret=OK,ctrl_info=pow%3D1%2Cmode%3D1%2Cairvol%3D2%2Chumd%3D1,' +
+  'sensor_info=htemp%3D22.5%2Chhum%3D55%2Cpm25%3D1%2Cdust%3D2%2Codor%3D1,' +
+  'unit_status=filter%3D0%2Cstrmr_cln%3D0%2Cwater_supply%3D0%2Cunit_err%3D0000,' +
+  'dev_setting=led_dsp%3D1%2Cd_sns%3D0%2Cc_lock%3D0%2Cstreamer%3D0%2Cact_ion%3D1%2Cbuzzer%3D1%2Cturbo%3D-%2Ceco_moni%3D1';
 
 export const PASSWORD_CONFIG = Object.freeze({
   name: 'Test', host: HOST, cacheDuration: 60,
   username: 'user@example.com', password: 'secret-password', clientSecret: 'app-secret', terminalId: 'T123', port: '30050',
 });
 
+// Shaped like the spec's /common/basic_info example, with fake values.
+export const BASIC_INFO = 'ret=OK,type=cleaner,ver=3_17_0,location=0,mac=FAKEMAC,name=FAKE_NAME,icon=0,method=polling,' +
+  'port=30051,id=FAKE_DEVICE_ID,pw=FAKE_DEVICE_PW,reg=jp,pow=1,err=0,adp_kind=4,ssid=FAKE_SSID,led=1,alertm=255,on_flg=0,' +
+  'alerts=0,grp_name=,en_grp=0,en_hol=0,instform=';
+
 export const LOCAL_CONFIG = Object.freeze({ name: 'Test', host: HOST, cacheDuration: 60 });
 
 /**
- * Routes every axios request to `routes`, keyed by "host/path" (e.g. `${API}/cleaner/set_control_info`).
+ * Routes every axios request to `routes`, keyed by "host/path" (e.g. `${API}/cleaner/set_control_info`), plus
+ * "#<grant_type>" for a request whose body has one (e.g. LOGIN and TOKEN).
  * A route returns [status, data, headers] or throws to simulate a network error. Unrouted requests get 404.
  * Default routes behave like the real servers on a successful login, shaped like a capture of the Daikin Smart App.
  */
@@ -34,22 +59,29 @@ export function mockServers(overrides = {}) {
   let clientState = null;
   const routes = {
     [`${HOST}/cleaner/get_unit_info`]: () => [200, UNIT_INFO],
+    [`${HOST}/common/basic_info`]: () => [200, BASIC_INFO],
     [`${AUTH}/authorize`]: ({ params }) => {
       clientState = params.state;
       return [302, {}, { location: `https://prod-deneb-ui.daikinsmartdb.jp/#/login?state=serverstate123&display=daikinsmartapp&uuid=${params.uuid}&lang=en` }];
     },
     [`${AUTH}/auth`]: () => [200, {}, { location: `daikinsmartapp://callback?code=CODE123&state=${clientState}` }],
-    [`${API}/premise/dsiot/login`]: () => [200, { rsc: 2000, access_token: 'ACCESS1', refresh_token: 'REFRESH1', expires_in: 3600 }],
-    [`${API}/premise/dsiot/token`]: () => [200, { rsc: 2000, access_token: 'ACCESS2', refresh_token: 'REFRESH2', expires_in: 3600 }],
-    [`${API}/cleaner/set_control_info`]: () => [200, 'ret=OK'],
+    [LOGIN]: () => [200, { token_type: 'Bearer', id_token: 'ID1', access_token: 'ACCESS1', refresh_token: 'REFRESH1', expires_in: 3600 }],
+    [TOKEN]: () => [200, { token_type: 'Bearer', id_token: 'ID2', access_token: 'ACCESS2', refresh_token: 'REFRESH2', expires_in: 3600 }],
+    [USERINFO]: () => [200, { rsc: 2000, uid: 'FAKE_UID', l_user_id: DEVICE_ID, l_password: DEVICE_PASSWORD }],
+    [SET]: () => [200, 'ret=OK'],
+    [CLOUD_UNIT]: () => [200, CLOUD_UNIT_INFO],
     ...overrides,
   };
 
   axios.defaults.adapter = async (config) => {
     const url = new URL(config.url);
-    const key = url.host + url.pathname;
-    const body = typeof config.data === 'string' ? JSON.parse(config.data) : config.data;
-    const request = { method: config.method, key, params: config.params ?? {}, body, headers: config.headers };
+    const body = parseBody(config.data);
+    const key = url.host + url.pathname + (body?.grant_type ? `#${body.grant_type}` : '');
+    const sent = config.headers;
+    const request = {
+      method: config.method, key, params: config.params ?? {}, body, headers: sent,
+      authorization: sent?.get?.('authorization'), contentType: sent?.get?.('content-type'),
+    };
     requests.push(request);
     const route = routes[key];
     let result;
@@ -73,6 +105,18 @@ export function mockServers(overrides = {}) {
     count: (key) => requests.filter((r) => r.key === key).length,
     last: (key) => requests.filter((r) => r.key === key).at(-1),
   };
+}
+
+/** Request bodies arrive serialised: JSON for most calls, application/x-www-form-urlencoded for an OAuth token call. */
+function parseBody(data) {
+  if (typeof data !== 'string') {
+    return data;
+  }
+  try {
+    return JSON.parse(data);
+  } catch {
+    return Object.fromEntries(new URLSearchParams(data));
+  }
 }
 
 export function makeLog() {

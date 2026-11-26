@@ -1,7 +1,7 @@
 import { describe, test, afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  API, HOST, LOCAL_CONFIG, PASSWORD_CONFIG, hap, makeClient, mockServers, rejection, settle, tempStorage, writeTokens,
+  HOST, LOCAL_CONFIG, LOGIN, PASSWORD_CONFIG, hap, makeClient, mockServers, rejection, settle, tempStorage, writeTokens,
 } from './helpers.mjs';
 
 const UNIT = `${HOST}/cleaner/get_unit_info`;
@@ -142,7 +142,8 @@ describe('choosing local-only mode or control', () => {
     mockServers();
     const { client, log } = makeClient(LOCAL_CONFIG);
     assert.equal(client.controlEnabled, false);
-    assert.ok(log.has('info', 'local-only mode'));
+    assert.equal(client.cloudEnabled, false);
+    assert.ok(log.has('info', 'read-only mode: status is read from the purifier'));
   });
 
   test('enables control with email, password, client secret, terminal ID and port', () => {
@@ -151,15 +152,44 @@ describe('choosing local-only mode or control', () => {
     assert.equal(client.controlEnabled, true);
   });
 
-  for (const missing of ['username', 'password', 'clientSecret', 'terminalId', 'port']) {
-    test(`is local-only when ${missing} is missing from the email/password settings`, () => {
+  for (const missing of ['username', 'password', 'clientSecret', 'terminalId']) {
+    test(`is local-only when ${missing} is missing, and the log names it`, () => {
       mockServers();
       const config = { ...PASSWORD_CONFIG };
       delete config[missing];
-      const { client } = makeClient(config);
+      const { client, log } = makeClient(config);
       assert.equal(client.controlEnabled, false);
+      assert.ok(log.has('warn', `Control is off because these settings are missing: ${missing}.`));
     });
   }
+
+  test('lists every missing control setting at once, by name and never by value', () => {
+    mockServers();
+    const { log } = makeClient({ ...LOCAL_CONFIG, username: 'user@example.com' });
+    assert.ok(log.has('warn', 'these settings are missing: password, clientSecret, terminalId.'));
+    assert.ok(!log.all().includes('user@example.com'));
+  });
+
+  test('does not warn about missing control settings when none are set (read-only on purpose)', () => {
+    mockServers();
+    const { log } = makeClient(LOCAL_CONFIG);
+    assert.ok(!log.lines.some((l) => l.level === 'warn'));
+  });
+
+  test('enables control without a port, which is then read from the purifier', () => {
+    mockServers();
+    const config = { ...PASSWORD_CONFIG };
+    delete config.port;
+    const { client } = makeClient(config);
+    assert.equal(client.controlEnabled, true);
+  });
+
+  test('a captured authorization code needs the client secret too', () => {
+    mockServers();
+    const { client, log } = makeClient({ ...LOCAL_CONFIG, code: 'C', terminalId: 'T' });
+    assert.equal(client.controlEnabled, false);
+    assert.ok(log.has('warn', 'missing: username, password, clientSecret.'));
+  });
 
   test('enables control with a captured authorization code', () => {
     mockServers();
@@ -185,7 +215,7 @@ describe('choosing local-only mode or control', () => {
     const server = mockServers();
     makeClient(PASSWORD_CONFIG);
     await settle();
-    assert.equal(server.count(`${API}/premise/dsiot/login`), 1);
+    assert.equal(server.count(LOGIN), 1);
   });
 });
 

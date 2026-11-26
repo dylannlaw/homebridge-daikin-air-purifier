@@ -1,42 +1,42 @@
 import { describe, test, afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  API, HOST, PASSWORD_CONFIG, hap, flushSet, makeClient, mockServers, rejection, settle, tempStorage, writeTokens,
+  CLOUD_UNIT, DEVICE_ID, DEVICE_PASSWORD, HOST, LOGIN, PASSWORD_CONFIG, SET, TOKEN, hap, flushSet, makeClient, mockServers,
+  rejection, settle, tempStorage, writeTokens,
 } from './helpers.mjs';
 
-const SET = `${API}/cleaner/set_control_info`;
 const UNIT = `${HOST}/cleaner/get_unit_info`;
-const TOKEN = `${API}/premise/dsiot/token`;
-const LOGIN = `${API}/premise/dsiot/login`;
 
 afterEach(() => mock.timers.reset());
 
 /** A client with control enabled, a valid access token, and the purifier's status already read. */
-async function readyClient(overrides = {}) {
+async function readyClient(overrides = {}, config = PASSWORD_CONFIG) {
   mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1_000_000 });
   const server = mockServers(overrides);
   const storage = tempStorage();
   writeTokens(storage, { accessToken: 'VALID', refreshToken: 'R', expiresAt: 1_000_000 + 3_600_000 });
-  const { client, log } = makeClient(PASSWORD_CONFIG, storage);
+  const { client, log } = makeClient(config, storage);
   await client.getUnitInfo();
   return { client, log, server };
 }
 
 describe('changing settings', () => {
-  test('sends one request with every setting, the terminal ID and port, and the access token', async () => {
+  test('sends one GET with exactly the spec\'s parameters: device credentials, port, terminal ID and every setting', async () => {
     const { client, server } = await readyClient();
     await flushSet(mock, client.setControlInfo({ pow: '0' }));
     const req = server.last(SET);
     assert.equal(server.count(SET), 1);
-    assert.equal(req.headers.Authorization, 'Bearer VALID');
-    assert.deepEqual(
-      { pow: req.params.pow, mode: req.params.mode, airvol: req.params.airvol, humd: req.params.humd },
-      { pow: '0', mode: '0', airvol: '3', humd: '2' },
-    );
-    assert.equal(req.params.terminalid, 'T123');
-    assert.equal(req.params.port, '30050');
-    assert.equal(req.params.id, 'ID');
-    assert.equal(req.params.spw, 'SPW');
+    assert.equal(req.method, 'get');
+    assert.deepEqual(req.params, {
+      // The other settings are the current state, read from the cloud's get_unit_info.
+      id: DEVICE_ID, spw: DEVICE_PASSWORD, port: '30050', terminalid: 'T123', pow: '0', mode: '1', airvol: '2', humd: '1',
+    });
+  });
+
+  test('sends the bare access token in the authorization header, without a Bearer prefix', async () => {
+    const { client, server } = await readyClient();
+    await flushSet(mock, client.setControlInfo({ pow: '0' }));
+    assert.equal(server.last(SET).authorization, 'VALID');
   });
 
   test('waits for 1 second of quiet before sending', async () => {
@@ -133,6 +133,70 @@ describe('changing settings', () => {
   });
 });
 
+describe('the port for device calls', () => {
+  const BASIC = `${HOST}/common/basic_info`;
+  const NO_PORT = (() => {
+    const config = { ...PASSWORD_CONFIG };
+    delete config.port;
+    return config;
+  })();
+
+  test('uses the configured port without asking the purifier', async () => {
+    const { client, server } = await readyClient();
+    await flushSet(mock, client.setControlInfo({ pow: '0' }));
+    assert.equal(server.last(SET).params.port, '30050');
+    assert.equal(server.count(BASIC), 0);
+  });
+
+  test('without a configured port, reads port= from the purifier\'s local /common/basic_info', async () => {
+    const { client, server } = await readyClient({}, NO_PORT);
+    await flushSet(mock, client.setControlInfo({ pow: '0' }));
+    assert.equal(server.last(SET).params.port, '30051');
+    assert.equal(server.last(BASIC).method, 'get');
+  });
+
+  test('reads it once and reuses it for later changes', async () => {
+    const { client, server } = await readyClient({}, NO_PORT);
+    await flushSet(mock, client.setControlInfo({ pow: '0' }));
+    await flushSet(mock, client.setControlInfo({ pow: '1' }));
+    assert.equal(server.count(SET), 2);
+    assert.equal(server.count(BASIC), 1);
+  });
+
+  test('never logs the basic_info response, which holds the purifier\'s own credentials', async () => {
+    const { client, log } = await readyClient({}, NO_PORT);
+    await flushSet(mock, client.setControlInfo({ pow: '0' }));
+    assert.ok(!log.all().includes('FAKE_DEVICE_PW'));
+  });
+
+  for (const [what, route] of [
+    ['has no port', () => [200, 'ret=OK,type=cleaner']],
+    ['has a port that is not a number', () => [200, 'ret=OK,port=abc']],
+    ['is not text', () => [200, { port: 30050 }]],
+    ['cannot be parsed', () => [200, 'ret=OK,name="broken']],
+    ['fails', () => [500, 'error']],
+  ]) {
+    test(`a basic_info response that ${what} fails the change and points at the Port setting`, async () => {
+      const { client, server, log } = await readyClient({ [BASIC]: route }, NO_PORT);
+      const error = await rejection(flushSet(mock, client.setControlInfo({ pow: '0' })));
+      assert.ok(error instanceof hap.HapStatusError);
+      assert.equal(server.count(SET), 0);
+      if (what !== 'fails') {
+        assert.ok(log.has('error', 'Set Port in the plugin config'));
+      }
+    });
+  }
+
+  test('a failed read is tried again on the next change', async () => {
+    let calls = 0;
+    // The first two reads fail: the status read at startup, then the first change.
+    const { client, server } = await readyClient({ [BASIC]: () => (++calls <= 2 ? [500, 'error'] : [200, 'ret=OK,port=30052']) }, NO_PORT);
+    await rejection(flushSet(mock, client.setControlInfo({ pow: '0' })));
+    await flushSet(mock, client.setControlInfo({ pow: '0' }));
+    assert.equal(server.last(SET).params.port, '30052');
+  });
+});
+
 describe('when a change fails', () => {
   test('a response other than ret=OK fails the change in HomeKit and puts the old value back', async () => {
     const { client, log } = await readyClient({ [SET]: () => [200, 'ret=PARAM NG'] });
@@ -146,10 +210,10 @@ describe('when a change fails', () => {
   test('after a failure the old value is restored and the purifier is read again on the next read', async () => {
     const { client, server } = await readyClient({ [SET]: () => [500, 'error'] });
     await rejection(flushSet(mock, client.setControlInfo({ pow: '0' })));
-    const reads = server.count(UNIT);
+    const reads = server.count(CLOUD_UNIT);
     const info = await client.getUnitInfo();
     assert.equal(info.airPurifier.pow, '1');
-    assert.equal(server.count(UNIT), reads + 1);
+    assert.equal(server.count(CLOUD_UNIT), reads + 1);
   });
 
   test('every change in a failed batch is rejected', async () => {
@@ -174,7 +238,7 @@ describe('when a change fails', () => {
     await flushSet(mock, client.setControlInfo({ pow: '0' }));
     assert.equal(server.count(SET), 2);
     assert.equal(server.count(TOKEN), 1);
-    assert.equal(server.last(SET).headers.Authorization, 'Bearer ACCESS2');
+    assert.equal(server.last(SET).authorization, 'ACCESS2');
   });
 
   test('a 403 is treated like a 401', async () => {
@@ -192,7 +256,7 @@ describe('when a change fails', () => {
 
   test('a change fails without a request when no login is possible', async () => {
     mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1_000_000 });
-    const server = mockServers({ [`${API}/premise/dsiot/login`]: () => [401, { error: 'invalid_grant' }] });
+    const server = mockServers({ [LOGIN]: () => [401, { error: 'invalid_grant' }] });
     const { client } = makeClient({ ...PASSWORD_CONFIG, clientSecret: 'wrong' });
     await settle();
     const error = await rejection(flushSet(mock, client.setControlInfo({ pow: '0' })));
@@ -221,12 +285,14 @@ describe('Daikin API rate limit (HTTP 429)', () => {
     assert.equal(server.count(SET), 2);
   });
 
-  test('reading status keeps working during the pause', async () => {
+  test('reading status keeps working during the pause, from the local IP, without a cloud request', async () => {
     const { client, server } = await readyClient({ [SET]: () => [429, 'slow down'] });
     await rejection(flushSet(mock, client.setControlInfo({ pow: '0' })));
+    const cloudReads = server.count(CLOUD_UNIT);
     const info = await client.getUnitInfo(true);
     assert.equal(info.sensorInfo.htemp, '26.0');
-    assert.ok(server.count(UNIT) >= 2);
+    assert.equal(server.count(CLOUD_UNIT), cloudReads);
+    assert.equal(server.count(UNIT), 1);
   });
 
   test('a 429 while logging in pauses logins too', async () => {

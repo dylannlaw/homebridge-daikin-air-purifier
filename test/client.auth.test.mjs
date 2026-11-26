@@ -3,15 +3,12 @@ import assert from 'node:assert/strict';
 import crypto from 'crypto';
 import fs from 'fs';
 import {
-  API, AUTH, LOCAL_CONFIG, PASSWORD_CONFIG, flushSet, makeClient, mockServers, readTokens, rejection, settle,
-  tempStorage, tokenFile, writeTokens,
+  AUTH, DEVICE_ID, DEVICE_PASSWORD, LOCAL_CONFIG, LOGIN, PASSWORD_CONFIG, SET, TOKEN, USERINFO, flushSet, makeClient,
+  mockServers, readTokens, rejection, settle, tempStorage, tokenFile, writeTokens,
 } from './helpers.mjs';
 
 const AUTHORIZE = `${AUTH}/authorize`;
 const SIGNIN = `${AUTH}/auth`;
-const LOGIN = `${API}/premise/dsiot/login`;
-const TOKEN = `${API}/premise/dsiot/token`;
-const SET = `${API}/cleaner/set_control_info`;
 const CODE_CONFIG = { ...LOCAL_CONFIG, code: 'CAPTURED', clientId: 'cid', uuid: 'CAPTURED-UUID', clientSecret: 'S', terminalId: 'T', port: '30050' };
 
 afterEach(() => mock.timers.reset());
@@ -48,17 +45,30 @@ describe('email/password login (Daikin Smart App flow)', () => {
     });
   });
 
-  test('3. exchanges the code with the client secret and a code verifier that matches the challenge', async () => {
+  test('3. exchanges the code at POST /dsioti/oauth2/token, form-encoded, with exactly the fields the spec requires', async () => {
     const { server } = await start(PASSWORD_CONFIG);
-    const { body } = server.last(LOGIN);
+    const req = server.last(LOGIN);
     const authorize = server.last(AUTHORIZE).params;
-    assert.equal(body.grant_type, 'authorization_code');
-    assert.equal(body.code, 'CODE123');
-    assert.equal(body.client_id, 'i66rposkjbceagakohlncsnus');
-    assert.equal(body.client_secret, 'app-secret');
-    assert.equal(body.uuid, authorize.uuid);
-    assert.equal(body.redirect_uri, 'daikinsmartapp://callback');
-    assert.equal(crypto.createHash('sha256').update(body.code_verifier).digest('base64url'), authorize.code_challenge);
+    assert.equal(req.method, 'post');
+    assert.equal(req.contentType, 'application/x-www-form-urlencoded');
+    const { code_verifier: verifier, ...rest } = req.body;
+    assert.deepEqual(rest, {
+      grant_type: 'authorization_code',
+      code: 'CODE123',
+      redirect_uri: 'daikinsmartapp://callback',
+      client_id: 'i66rposkjbceagakohlncsnus',
+      client_secret: 'app-secret',
+    });
+    assert.equal(crypto.createHash('sha256').update(verifier).digest('base64url'), authorize.code_challenge);
+  });
+
+  test('4. fetches the device credentials from userinfo with the new access token in the query string', async () => {
+    const { client, server } = await start(PASSWORD_CONFIG);
+    await flushSet(mock, client.setControlInfo({ pow: '0' }));
+    const req = server.last(USERINFO);
+    assert.equal(req.method, 'get');
+    assert.deepEqual(req.params, { access_token: 'ACCESS1' });
+    assert.equal(req.authorization, undefined);
   });
 
   test('uses a new PKCE verifier and state for every login', async () => {
@@ -83,7 +93,7 @@ describe('email/password login (Daikin Smart App flow)', () => {
   test('uses the new access token for changes', async () => {
     const { client, server } = await start(PASSWORD_CONFIG);
     await flushSet(mock, client.setControlInfo({ pow: '0' }));
-    assert.equal(server.last(SET).headers.Authorization, 'Bearer ACCESS1');
+    assert.equal(server.last(SET).authorization, 'ACCESS1');
   });
 
   test('never writes the password or code to the token file or the log', async () => {
@@ -228,7 +238,7 @@ describe('keeping the login alive', () => {
     await flushSet(mock, client.setControlInfo({ pow: '0' }));
     assert.equal(server.count(AUTHORIZE), 0);
     assert.equal(server.count(TOKEN), 0);
-    assert.equal(server.last(SET).headers.Authorization, 'Bearer SAVED');
+    assert.equal(server.last(SET).authorization, 'SAVED');
   });
 
   test('a saved token that expires within 5 minutes is renewed with the refresh token', async () => {
@@ -236,7 +246,11 @@ describe('keeping the login alive', () => {
     writeTokens(storage, { accessToken: 'OLD', refreshToken: 'R', expiresAt: 1_000_000 + 4 * 60 * 1000 });
     const { server } = await start(PASSWORD_CONFIG, { storage });
     assert.equal(server.count(TOKEN), 1);
-    assert.deepEqual(server.last(TOKEN).body, { grant_type: 'refresh_token', refresh_token: 'R' });
+    const req = server.last(TOKEN);
+    assert.equal(req.contentType, 'application/x-www-form-urlencoded');
+    assert.deepEqual(req.body, {
+      grant_type: 'refresh_token', refresh_token: 'R', client_id: 'i66rposkjbceagakohlncsnus', client_secret: 'app-secret',
+    });
     assert.equal(server.count(AUTHORIZE), 0);
   });
 
@@ -365,10 +379,12 @@ function LOCAL_CONFIG_WITH(extra) {
 }
 
 describe('captured code and refresh token (advanced settings)', () => {
-  test('a captured code is exchanged with the captured client ID, UUID and secret, without PKCE', async () => {
+  test('a captured code is exchanged with the captured client ID and secret, without a PKCE verifier', async () => {
     const { server, storage } = await start(CODE_CONFIG);
     const { body } = server.last(LOGIN);
-    assert.deepEqual(body, { grant_type: 'authorization_code', code: 'CAPTURED', client_id: 'cid', uuid: 'CAPTURED-UUID', client_secret: 'S' });
+    assert.deepEqual(body, {
+      grant_type: 'authorization_code', code: 'CAPTURED', redirect_uri: 'daikinsmartapp://callback', client_id: 'cid', client_secret: 'S',
+    });
     assert.equal(server.count(AUTHORIZE), 0);
     assert.equal(readTokens(storage).code, 'CAPTURED');
   });
@@ -431,6 +447,108 @@ describe('captured code and refresh token (advanced settings)', () => {
   });
 });
 
+describe('device credentials (userinfo)', () => {
+  /** Starts with a valid saved token, optionally with saved device credentials. */
+  async function startSaved(saved = {}, routes = {}) {
+    const storage = tempStorage();
+    writeTokens(storage, { accessToken: 'SAVED', refreshToken: 'R', expiresAt: 1_000_000 + 3_600_000, ...saved });
+    return start(PASSWORD_CONFIG, { storage, routes });
+  }
+
+  test('are sent as id and spw on a change', async () => {
+    const { client, server } = await startSaved();
+    await flushSet(mock, client.setControlInfo({ pow: '0' }));
+    assert.equal(server.last(USERINFO).params.access_token, 'SAVED');
+    assert.equal(server.last(SET).params.id, DEVICE_ID);
+    assert.equal(server.last(SET).params.spw, DEVICE_PASSWORD);
+  });
+
+  test('are fetched once and reused for later changes', async () => {
+    const { client, server } = await startSaved();
+    await flushSet(mock, client.setControlInfo({ pow: '0' }));
+    await flushSet(mock, client.setControlInfo({ pow: '1' }));
+    assert.equal(server.count(SET), 2);
+    assert.equal(server.count(USERINFO), 1);
+  });
+
+  test('are saved, so a restart doesn\'t fetch them again', async () => {
+    const { client, server, storage } = await startSaved();
+    await flushSet(mock, client.setControlInfo({ pow: '0' }));
+    const saved = readTokens(storage);
+    assert.equal(saved.deviceId, DEVICE_ID);
+    assert.equal(saved.devicePassword, DEVICE_PASSWORD);
+    assert.equal(server.count(USERINFO), 1);
+    mock.timers.reset();
+    const second = await start(PASSWORD_CONFIG, { storage });
+    await flushSet(mock, second.client.setControlInfo({ pow: '1' }));
+    assert.equal(second.server.count(USERINFO), 0);
+    assert.equal(second.server.last(SET).params.spw, DEVICE_PASSWORD);
+  });
+
+  test('are kept when the access token is renewed', async () => {
+    const { client, server } = await startSaved({ expiresAt: 1_000_000 + 4 * 60 * 1000, deviceId: 'SAVED_ID', devicePassword: 'SAVED_PW' });
+    assert.equal(server.count(TOKEN), 1);
+    await flushSet(mock, client.setControlInfo({ pow: '0' }));
+    assert.equal(server.count(USERINFO), 0);
+    assert.equal(server.last(SET).params.id, 'SAVED_ID');
+  });
+
+  test('are fetched again after a new login, which may be for another account', async () => {
+    const { client, server } = await start(PASSWORD_CONFIG, {
+      storage: (() => {
+        const storage = tempStorage();
+        writeTokens(storage, { deviceId: 'OLD_ID', devicePassword: 'OLD_PW' });
+        return storage;
+      })(),
+    });
+    assert.equal(server.count(LOGIN), 1);
+    await flushSet(mock, client.setControlInfo({ pow: '0' }));
+    assert.equal(server.count(USERINFO), 1);
+    assert.equal(server.last(SET).params.id, DEVICE_ID);
+  });
+
+  test('a userinfo response without them fails the change, and they are fetched again next time', async () => {
+    let calls = 0;
+    const { client, server, log } = await startSaved({}, {
+      [USERINFO]: () => (++calls === 1 ? [200, { rsc: 2000, uid: 'U' }] : [200, { l_user_id: 'X', l_password: 'Y' }]),
+    });
+    await rejection(flushSet(mock, client.setControlInfo({ pow: '0' })));
+    assert.equal(server.count(SET), 0);
+    assert.ok(log.has('error', 'did not return the device credentials'));
+    await flushSet(mock, client.setControlInfo({ pow: '0' }));
+    assert.equal(server.last(SET).params.id, 'X');
+  });
+
+  test('a 401 from userinfo renews the access token and tries once more', async () => {
+    let calls = 0;
+    const { client, server } = await startSaved({}, {
+      [USERINFO]: ({ params }) => (++calls === 1 ? [401, 'unauthorized'] : [200, { l_user_id: params.access_token, l_password: 'P' }]),
+    });
+    await flushSet(mock, client.setControlInfo({ pow: '0' }));
+    assert.equal(server.count(TOKEN), 1);
+    assert.equal(server.last(USERINFO).params.access_token, 'ACCESS2');
+    assert.equal(server.last(SET).params.id, 'ACCESS2');
+  });
+
+  test('a 401 on a change fetches them again with the renewed token before retrying', async () => {
+    let calls = 0;
+    const { client, server } = await startSaved({ deviceId: 'STALE', devicePassword: 'STALE' }, {
+      [SET]: () => (++calls === 1 ? [401, 'unauthorized'] : [200, 'ret=OK']),
+    });
+    await flushSet(mock, client.setControlInfo({ pow: '0' }));
+    assert.equal(server.count(USERINFO), 1);
+    assert.equal(server.last(USERINFO).params.access_token, 'ACCESS2');
+    assert.equal(server.last(SET).params.spw, DEVICE_PASSWORD);
+  });
+
+  test('are never written to the log, and the access token in the userinfo URL isn\'t either', async () => {
+    const { client, log } = await startSaved();
+    await flushSet(mock, client.setControlInfo({ pow: '0' }));
+    assert.ok(!log.all().includes(DEVICE_PASSWORD));
+    assert.ok(!log.all().includes('SAVED'));
+  });
+});
+
 describe('the token file', () => {
   test('is readable only by the Homebridge user', async () => {
     const { storage } = await start(PASSWORD_CONFIG);
@@ -463,6 +581,6 @@ describe('the token file', () => {
     const { client, server, log } = await start(PASSWORD_CONFIG, { storage });
     assert.ok(log.has('warn', 'Unable to write'));
     await flushSet(mock, client.setControlInfo({ pow: '0' }));
-    assert.equal(server.last(SET).headers.Authorization, 'Bearer ACCESS1');
+    assert.equal(server.last(SET).authorization, 'ACCESS1');
   });
 });
