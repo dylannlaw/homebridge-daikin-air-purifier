@@ -32,6 +32,11 @@ export const PASSWORD_CONFIG = Object.freeze({
   username: 'user@example.com', password: 'secret-password', clientSecret: 'app-secret', terminalId: 'T123', port: '30050',
 });
 
+// Shaped like the spec's /common/basic_info example, with fake values.
+export const BASIC_INFO = 'ret=OK,type=cleaner,ver=3_17_0,location=0,mac=FAKEMAC,name=FAKE_NAME,icon=0,method=polling,' +
+  'port=30051,id=FAKE_DEVICE_ID,pw=FAKE_DEVICE_PW,reg=jp,pow=1,err=0,adp_kind=4,ssid=FAKE_SSID,led=1,alertm=255,on_flg=0,' +
+  'alerts=0,grp_name=,en_grp=0,en_hol=0,instform=';
+
 export const LOCAL_CONFIG = Object.freeze({ name: 'Test', host: HOST, cacheDuration: 60 });
 
 /**
@@ -45,6 +50,7 @@ export function mockServers(overrides = {}) {
   let clientState = null;
   const routes = {
     [`${HOST}/cleaner/get_unit_info`]: () => [200, UNIT_INFO],
+    [`${HOST}/common/basic_info`]: () => [200, BASIC_INFO],
     [`${AUTH}/authorize`]: ({ params }) => {
       clientState = params.state;
       return [302, {}, { location: `https://prod-deneb-ui.daikinsmartdb.jp/#/login?state=serverstate123&display=daikinsmartapp&uuid=${params.uuid}&lang=en` }];

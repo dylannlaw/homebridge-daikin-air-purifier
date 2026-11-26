@@ -27,13 +27,18 @@ Control from HomeKit uses the Daikin cloud the way the current Daikin Smart App 
 - **Secrets:** `l_user_id` / `l_password` are device credentials. They go in the token file (mode 0600) and are never logged; the `userinfo` URL is logged without its `access_token`.
 - **Unchanged:** `GET /dsioti/oauth2/authorize` still starts the PKCE login session (the spec starts one step later, at `POST /auth`, with that session's `state`). Status is still read from the purifier's local `GET /cleaner/get_unit_info`, the same path and format as the spec's.
 - **Captured `code` setting:** still sent to the new token endpoint, without a `code_verifier`. The spec's exchange requires the verifier the app used, so a captured code alone may no longer work. Documented in the README.
-- **Configuration:** no new settings. The `clientSecret` description now points at the `/dsioti/oauth2/token` request.
+- **Configuration:** no new settings. What `set_control_info` needs decides what's required:
+  - `id` / `spw` come from `userinfo`, the token from `username` + `password` + `clientSecret`, and `terminalid` from `terminalId`. Those four settings are **required for control**.
+  - `port` becomes **optional**: when it's empty, it's read once from the purifier's local `GET /common/basic_info` (`port=`, as in the spec's example), so it adds no cloud call. That response also holds the purifier's own `id` / `pw`, so it's never logged.
+  - A captured `code` also needs `clientSecret`, because the spec's token endpoint requires `client_secret`.
+  - When some control settings are filled in but not all, startup logs the missing ones by name (never their values).
+  - `config.schema.json` groups the control settings in one section and says which are required.
 
 ## Files expected to change
 
 - `src/client.ts`, `src/types.d.ts`
 - `test/helpers.mjs`, `test/client.auth.test.mjs`, `test/client.control.test.mjs`
-- `README.md`, `config.schema.json`
+- `README.md` (required settings table, "How control works, end to end"), `config.schema.json` (layout, descriptions)
 
 ## Verification
 

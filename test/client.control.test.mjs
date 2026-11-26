@@ -10,12 +10,12 @@ const UNIT = `${HOST}/cleaner/get_unit_info`;
 afterEach(() => mock.timers.reset());
 
 /** A client with control enabled, a valid access token, and the purifier's status already read. */
-async function readyClient(overrides = {}) {
+async function readyClient(overrides = {}, config = PASSWORD_CONFIG) {
   mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1_000_000 });
   const server = mockServers(overrides);
   const storage = tempStorage();
   writeTokens(storage, { accessToken: 'VALID', refreshToken: 'R', expiresAt: 1_000_000 + 3_600_000 });
-  const { client, log } = makeClient(PASSWORD_CONFIG, storage);
+  const { client, log } = makeClient(config, storage);
   await client.getUnitInfo();
   return { client, log, server };
 }
@@ -129,6 +129,69 @@ describe('changing settings', () => {
     await flushSet(mock, client.setControlInfo({ airvol: '5' }));
     assert.equal(server.last(SET).params.pow, '0');
     assert.equal(server.last(SET).params.airvol, '5');
+  });
+});
+
+describe('the port for device calls', () => {
+  const BASIC = `${HOST}/common/basic_info`;
+  const NO_PORT = (() => {
+    const config = { ...PASSWORD_CONFIG };
+    delete config.port;
+    return config;
+  })();
+
+  test('uses the configured port without asking the purifier', async () => {
+    const { client, server } = await readyClient();
+    await flushSet(mock, client.setControlInfo({ pow: '0' }));
+    assert.equal(server.last(SET).params.port, '30050');
+    assert.equal(server.count(BASIC), 0);
+  });
+
+  test('without a configured port, reads port= from the purifier\'s local /common/basic_info', async () => {
+    const { client, server } = await readyClient({}, NO_PORT);
+    await flushSet(mock, client.setControlInfo({ pow: '0' }));
+    assert.equal(server.last(SET).params.port, '30051');
+    assert.equal(server.last(BASIC).method, 'get');
+  });
+
+  test('reads it once and reuses it for later changes', async () => {
+    const { client, server } = await readyClient({}, NO_PORT);
+    await flushSet(mock, client.setControlInfo({ pow: '0' }));
+    await flushSet(mock, client.setControlInfo({ pow: '1' }));
+    assert.equal(server.count(SET), 2);
+    assert.equal(server.count(BASIC), 1);
+  });
+
+  test('never logs the basic_info response, which holds the purifier\'s own credentials', async () => {
+    const { client, log } = await readyClient({}, NO_PORT);
+    await flushSet(mock, client.setControlInfo({ pow: '0' }));
+    assert.ok(!log.all().includes('FAKE_DEVICE_PW'));
+  });
+
+  for (const [what, route] of [
+    ['has no port', () => [200, 'ret=OK,type=cleaner']],
+    ['has a port that is not a number', () => [200, 'ret=OK,port=abc']],
+    ['is not text', () => [200, { port: 30050 }]],
+    ['cannot be parsed', () => [200, 'ret=OK,name="broken']],
+    ['fails', () => [500, 'error']],
+  ]) {
+    test(`a basic_info response that ${what} fails the change and points at the Port setting`, async () => {
+      const { client, server, log } = await readyClient({ [BASIC]: route }, NO_PORT);
+      const error = await rejection(flushSet(mock, client.setControlInfo({ pow: '0' })));
+      assert.ok(error instanceof hap.HapStatusError);
+      assert.equal(server.count(SET), 0);
+      if (what !== 'fails') {
+        assert.ok(log.has('error', 'Set Port in the plugin config'));
+      }
+    });
+  }
+
+  test('a failed read is tried again on the next change', async () => {
+    let calls = 0;
+    const { client, server } = await readyClient({ [BASIC]: () => (++calls === 1 ? [500, 'error'] : [200, 'ret=OK,port=30052']) }, NO_PORT);
+    await rejection(flushSet(mock, client.setControlInfo({ pow: '0' })));
+    await flushSet(mock, client.setControlInfo({ pow: '0' }));
+    assert.equal(server.last(SET).params.port, '30052');
   });
 });
 

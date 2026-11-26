@@ -151,15 +151,44 @@ describe('choosing local-only mode or control', () => {
     assert.equal(client.controlEnabled, true);
   });
 
-  for (const missing of ['username', 'password', 'clientSecret', 'terminalId', 'port']) {
-    test(`is local-only when ${missing} is missing from the email/password settings`, () => {
+  for (const missing of ['username', 'password', 'clientSecret', 'terminalId']) {
+    test(`is local-only when ${missing} is missing, and the log names it`, () => {
       mockServers();
       const config = { ...PASSWORD_CONFIG };
       delete config[missing];
-      const { client } = makeClient(config);
+      const { client, log } = makeClient(config);
       assert.equal(client.controlEnabled, false);
+      assert.ok(log.has('warn', `Control is off because these settings are missing: ${missing}.`));
     });
   }
+
+  test('lists every missing control setting at once, by name and never by value', () => {
+    mockServers();
+    const { log } = makeClient({ ...LOCAL_CONFIG, username: 'user@example.com' });
+    assert.ok(log.has('warn', 'these settings are missing: password, clientSecret, terminalId.'));
+    assert.ok(!log.all().includes('user@example.com'));
+  });
+
+  test('does not warn about missing control settings when none are set (read-only on purpose)', () => {
+    mockServers();
+    const { log } = makeClient(LOCAL_CONFIG);
+    assert.ok(!log.lines.some((l) => l.level === 'warn'));
+  });
+
+  test('enables control without a port, which is then read from the purifier', () => {
+    mockServers();
+    const config = { ...PASSWORD_CONFIG };
+    delete config.port;
+    const { client } = makeClient(config);
+    assert.equal(client.controlEnabled, true);
+  });
+
+  test('a captured authorization code needs the client secret too', () => {
+    mockServers();
+    const { client, log } = makeClient({ ...LOCAL_CONFIG, code: 'C', terminalId: 'T' });
+    assert.equal(client.controlEnabled, false);
+    assert.ok(log.has('warn', 'missing: username, password, clientSecret.'));
+  });
 
   test('enables control with a captured authorization code', () => {
     mockServers();

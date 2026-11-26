@@ -27,29 +27,30 @@
       "username": {
         "title": "Daikin Account Email",
         "type": "string",
-        "description": "The email you sign in to the Daikin Smart App with. Needed to control the purifier; leave empty for read-only."
+        "description": "Required for control. The email you sign in to the Daikin Smart App with. Leave the whole Control section empty for read-only."
       },
       "password": {
         "title": "Daikin Account Password",
         "type": "string",
         "x-schema-form": {
           "type": "password"
-        }
+        },
+        "description": "Required for control. Your Daikin Smart App password."
       },
       "clientSecret": {
         "title": "Client Secret",
         "type": "string",
-        "description": "Needed to control the purifier. Captured once from the Daikin Smart App's https://prod-dsioti.daikinsmartdb.jp/dsioti/oauth2/token request body."
+        "description": "Required for control. The client_secret in the body of the Daikin Smart App's https://prod-dsioti.daikinsmartdb.jp/dsioti/oauth2/token request, captured once."
       },
       "terminalId": {
         "title": "Terminal ID",
         "type": "string",
-        "description": "Needed to control the purifier. Captured once from the Daikin Smart App's https://api.daikinsmartdb.jp/cleaner/set_control_info request."
+        "description": "Required for control. The terminalid query parameter of the Daikin Smart App's https://api.daikinsmartdb.jp/cleaner/set_control_info request, captured once."
       },
       "port": {
         "title": "Port",
         "type": "string",
-        "description": "Needed to control the purifier. Usually 30050; it is also shown as port= at http://<purifier IP>/common/basic_info.",
+        "description": "Optional. Leave empty to read it from the purifier (port= at http://<purifier IP>/common/basic_info). Usually 30050.",
         "placeholder": "30050"
       },
       "clientId": {
@@ -65,7 +66,7 @@
       "code": {
         "title": "Authorization Code (advanced)",
         "type": "string",
-        "description": "Alternative to email and password: a code captured from the Daikin Smart App. It works a single time."
+        "description": "Alternative to email and password, used with the Client Secret: a code captured from the Daikin Smart App. It works a single time, and may not work without the app's PKCE code verifier."
       },
       "refreshToken": {
         "title": "Refresh Token (advanced)",
@@ -91,5 +92,45 @@
         "placeholder": "123-456-789"
       }
     }
-  }
+  },
+  "layout": [
+    "name",
+    "accessory",
+    "host",
+    "cacheDuration",
+    {
+      "type": "fieldset",
+      "title": "Control from HomeKit (Daikin cloud)",
+      "description": "Fill in Email, Password, Client Secret and Terminal ID to control the purifier. Leave them all empty for read-only.",
+      "items": [
+        "username",
+        "password",
+        "clientSecret",
+        "terminalId",
+        "port"
+      ]
+    },
+    {
+      "type": "fieldset",
+      "title": "Advanced",
+      "expandable": true,
+      "expanded": false,
+      "items": [
+        "clientId",
+        "uuid",
+        "code",
+        "refreshToken"
+      ]
+    },
+    {
+      "type": "fieldset",
+      "title": "Accessory information",
+      "expandable": true,
+      "expanded": false,
+      "items": [
+        "model",
+        "serial"
+      ]
+    }
+  ]
 }

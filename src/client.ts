@@ -22,6 +22,8 @@ const TOKEN_REFRESH_MARGIN_MS = 5 * 60 * 1000;
 const DEFAULT_TOKEN_LIFETIME_S = 60 * 60;
 // After a 429, make no cloud calls for this long.
 const RATE_LIMIT_BACKOFF_MS = 5 * 60 * 1000;
+// Settings that only matter for control. If any is set while control is off, the log says which ones are missing.
+const CONTROL_SETTINGS = ['username', 'password', 'clientSecret', 'terminalId', 'port', 'code', 'refreshToken'];
 
 type UnitInfo = { airPurifier: AirPurifier; sensorInfo: SensorInfo; unitStatus: UnitStatus };
 
@@ -68,6 +70,8 @@ class Client {
   private authFailureLogged = false;
   // Set when the email or password is rejected, so the login isn't retried (and the account locked) until restart.
   private passwordLoginFailed = false;
+  // The port read from the purifier's /common/basic_info when `port` isn't in the config.
+  private devicePort: string | null = null;
 
   constructor(log: Logging, config: AccessoryConfig, storagePath: string, hap: HAP) {
     this.config = config;
@@ -89,19 +93,39 @@ class Client {
     };
 
     this.loadTokens();
-    this.controlEnabled = Boolean(
-      config.terminalId && config.port &&
-      (this.hasPasswordLogin() || config.code || config.refreshToken || this.tokens.refreshToken),
-    );
+    const missing = this.missingControlSettings();
+    this.controlEnabled = missing.length === 0;
 
     if (this.controlEnabled) {
       this.ensureAuthenticated();
     } else {
       this.log.info(
         'Running in local-only mode: sensors and status are read from the purifier, but it cannot be controlled from HomeKit. ' +
-        'To enable control, add your Daikin account email and password, the Client Secret, Terminal ID and Port.',
+        'To enable control, add your Daikin account email and password, the Client Secret and the Terminal ID.',
       );
+      if (CONTROL_SETTINGS.some((key) => config[key])) {
+        // Some control settings are filled in, so the user is trying to set up control: say exactly what's left.
+        this.log.warn(`Control is off because these settings are missing: ${missing.join(', ')}.`);
+      }
     }
+  }
+
+  /**
+   * The settings still needed before set_control_info can be called, by name (never by value). Every call needs:
+   * an access token (email, password and Client Secret, or a captured code with the Client Secret, or a refresh token),
+   * from which userinfo gives `id` and `spw`; and `terminalid`. `port` is read from the purifier when not set.
+   */
+  private missingControlSettings(): string[] {
+    const missing: string[] = [];
+    const hasToken = this.config.refreshToken || this.tokens.refreshToken;
+    const hasCode = this.config.code && this.config.clientSecret;
+    if (!this.hasPasswordLogin() && !hasCode && !hasToken) {
+      missing.push(...['username', 'password', 'clientSecret'].filter((key) => !this.config[key]));
+    }
+    if (!this.config.terminalId) {
+      missing.push('terminalId');
+    }
+    return missing;
   }
 
   private hasPasswordLogin() {
@@ -219,6 +243,7 @@ class Client {
     if (!(await this.ensureAuthenticated())) {
       throw new Error('Not authenticated with the Daikin API. Check the authorization settings in the plugin config.');
     }
+    const port = await this.ensurePort();
 
     try {
       const { id, spw } = await this.ensureDeviceCredentials();
@@ -230,7 +255,7 @@ class Client {
         params: {
           id,
           spw,
-          port: this.config.port,
+          port,
           terminalid: this.config.terminalId,
           pow: control.pow,
           mode: control.mode,
@@ -276,6 +301,33 @@ class Client {
       this.writeTokenFile();
     }
     return { id: this.tokens.deviceId, spw: this.tokens.devicePassword };
+  }
+
+  /**
+   * Returns the `port` for device calls: the configured one, or else the `port=` the purifier reports at its local
+   * /common/basic_info (no cloud call). Read once, then kept until restart.
+   */
+  private async ensurePort(): Promise<string> {
+    if (this.config.port) {
+      return String(this.config.port);
+    }
+    if (!this.devicePort) {
+      const url = `http://${this.config.host}/common/basic_info`;
+      // The response includes the purifier's own credentials (id, pw), so it is never logged.
+      this.log.debug(`[GET] ${url}`);
+      const { data } = await axios.get<string>(url, { timeout: 10000 });
+      let port: string | undefined;
+      try {
+        port = typeof data === 'string' ? this.parseResponse(data).port : undefined;
+      } catch {
+        port = undefined;
+      }
+      if (!port || !/^\d+$/.test(port)) {
+        throw new Error('The purifier did not report its port at /common/basic_info. Set Port in the plugin config (usually 30050).');
+      }
+      this.devicePort = port;
+    }
+    return this.devicePort;
   }
 
   /**
