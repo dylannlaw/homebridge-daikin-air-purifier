@@ -58,7 +58,7 @@
       "port": {
         "title": "Port",
         "type": "string",
-        "description": "Optional. The purifier's port. Leave empty to read it from the purifier at the local IP (port= at http://<purifier IP>/common/basic_info), or 30050 when there's no local IP. It's sent with cloud control requests.",
+        "description": "Cloud mode only, optional; not used in local mode. Leave empty to read it from the purifier (port= at http://<purifier IP>/common/basic_info), or 30050 when there's no local IP.",
         "placeholder": "30050"
       },
       "clientId": {
@@ -105,7 +105,8 @@
         "username",
         "password",
         "clientSecret",
-        "terminalId"
+        "terminalId",
+        "port"
       ]
     },
     {
@@ -113,8 +114,7 @@
       "title": "Local mode (status only, no control)",
       "description": "For local mode, set only the purifier's local IP and leave Cloud mode above empty. Status is read from the purifier on your network; it can't be controlled from HomeKit. In cloud mode the local IP is optional and used as a fallback.",
       "items": [
-        "host",
-        "port"
+        "host"
       ]
     },
     {

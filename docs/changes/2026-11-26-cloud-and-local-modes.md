@@ -10,9 +10,9 @@ While testing in the local Homebridge, the purifier showed up in the Home app bu
 
 ## Design
 
-- `config.schema.json`: the account group is renamed "Cloud mode, recommended (status and control from HomeKit)", is shown first to encourage cloud mode, and says all four fields are required for control. Each of those four field descriptions says the same. A new "Local mode (status only, no control)" group below it holds `host` and `port`.
+- `config.schema.json`: the account group is renamed "Cloud mode, recommended (status and control from HomeKit)", is shown first to encourage cloud mode, and says all four fields are required for control. Each of those four field descriptions says the same. A new "Local mode (status only, no control)" group below it holds `host`.
 - `README.md`: Configuration starts with a table comparing the two modes, then has a section and example for each, then the full settings table marked by mode.
-- `port` is in the Local mode group because it's the purifier's own port, read from it at the local IP. The plugin only sends it with cloud requests ([`src/client.ts`](../../src/client.ts) `ensurePort`), so its description says so, and it stays optional.
+- `port` stays in the Cloud mode group and is labelled cloud mode only, because only cloud requests send it ([`src/client.ts`](../../src/client.ts) `ensurePort`). Local reads don't use it.
 
 ## Files
 
