@@ -1,6 +1,63 @@
 # Changelog
 
-All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+All notable changes to this project are documented in this file. Every pull request that changes the plugin raises the version in `package.json` and adds an entry here; merging it to `master` publishes that version to npm, and the entry becomes the [GitHub Release](https://github.com/dylannlaw/homebridge-daikin-air-purifier/releases) notes.
+
+Versions 0.2.3 and 1.0.0 to 1.0.4 were never published: the patch number used to come from the release workflow's run number.
+
+## [1.0.5](https://github.com/dylannlaw/homebridge-daikin-air-purifier/compare/v0.2.4...v1.0.5) (2026-11-26)
+
+
+### Features
+
+* switches for the purifier's Eco, Pollen and Circulator modes, linked to the Air Purifier in the Home app; the new optional `modeSwitches` setting chooses which ones appear ([#20](https://github.com/dylannlaw/homebridge-daikin-air-purifier/pull/20))
+
+
+### Documentation
+
+* the README is a step-by-step guide, and the mode switches use the purifier's own labels ([#21](https://github.com/dylannlaw/homebridge-daikin-air-purifier/pull/21))
+
+## [0.2.4](https://github.com/dylannlaw/homebridge-daikin-air-purifier/compare/v0.2.2...v0.2.4) (2026-11-26)
+
+
+### Features
+
+* cloud API calls follow the Daikin Smart API reference: the token, userinfo and control calls use the endpoints and bodies the Daikin Smart App uses ([#11](https://github.com/dylannlaw/homebridge-daikin-air-purifier/pull/11))
+* with a Daikin login set up, status is read from the cloud; `host` is now optional and used as the fallback when a cloud read fails
+* `port` is optional and read from the purifier when it's empty; startup names any missing control settings
+
+
+### Documentation
+
+* the README is split into a short overview and guides, and `npm run homebridge:local` runs the plugin in a private test Homebridge ([#14](https://github.com/dylannlaw/homebridge-daikin-air-purifier/pull/14))
+
+
+### CI
+
+* a release is made only when the plugin itself changes ([#15](https://github.com/dylannlaw/homebridge-daikin-air-purifier/pull/15))
+
+## [0.2.2](https://github.com/dylannlaw/homebridge-daikin-air-purifier/compare/v0.2.1...v0.2.2) (2026-11-26)
+
+
+### CI
+
+* test coverage is uploaded to Codecov ([#13](https://github.com/dylannlaw/homebridge-daikin-air-purifier/pull/13))
+
+## [0.2.1](https://github.com/dylannlaw/homebridge-daikin-air-purifier/compare/v0.2.0...v0.2.1) (2026-11-26)
+
+
+### Bug Fixes
+
+* axios is updated to 1.21.1 ([#6](https://github.com/dylannlaw/homebridge-daikin-air-purifier/pull/6))
+
+
+### Documentation
+
+* control is documented as blocked on newer Daikin Smart App versions ([#3](https://github.com/dylannlaw/homebridge-daikin-air-purifier/pull/3))
+
+
+### CI
+
+* every commit to `master` that changes the plugin is released to npm ([#12](https://github.com/dylannlaw/homebridge-daikin-air-purifier/pull/12))
 
 ## [0.2.0](https://github.com/dylannlaw/homebridge-daikin-air-purifier/compare/v0.1.1...v0.2.0) (2026-10-18)
 

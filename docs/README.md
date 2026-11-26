@@ -21,6 +21,7 @@ Living files, written before a larger change is built.
 
 One per non-trivial change, newest first.
 
+- [2026-11-26 Keep the version in package.json and CHANGELOG.md in step with npm](changes/2026-11-26-version-in-repo.md)
 - [2026-11-26 Start the 1.0 release line](changes/2026-11-26-version-1-0.md)
 - [2026-11-26 Switches for the purifier's Eco, Pollen and Circulator modes](changes/2026-11-26-mode-switches.md)
 - [2026-11-26 Redesign the README as a step-by-step guide](changes/2026-11-26-readme-redesign.md)

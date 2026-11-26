@@ -1,11 +1,9 @@
-# Every push to master that changes what ships publishes a new version to npm, tags it and creates a
-# GitHub Release with notes generated from the merged pull requests.
+# Every push to master that raises the version in package.json publishes that version to npm, tags it
+# and creates a GitHub Release whose notes are the version's entry in CHANGELOG.md.
 #
-# Version: MAJOR.MINOR come from package.json, PATCH is this workflow's run number, so every release is
-# newer than the last without anyone bumping the version. package.json in the repository keeps a .0 patch
-# (e.g. 0.3.0); CI writes the real version into the package it publishes and does not commit it back.
-# To start a new minor or major line, change MAJOR.MINOR in package.json in a normal pull request.
-# Don't rename this file: its run number would start again from 1 and collide with published versions.
+# Version: package.json is the source of truth, so the repository always says what is on npm. A pull
+# request that changes the plugin must raise the version and add a CHANGELOG.md entry; tests.yml checks
+# that with .github/scripts/check-version.sh. CI never edits or commits the version.
 #
 # Authentication: npm trusted publishing (OIDC) when it is set up for this repository on npmjs.com,
 # otherwise the NPM_TOKEN secret (a granular access token that can bypass 2FA).
@@ -17,12 +15,11 @@
 # - Third-party actions are pinned to a commit SHA. Dependabot proposes updates.
 name: Release
 
-# Only changes to the plugin itself release: src/**, config.schema.json, tsconfig.json, and package.json
-# when it changes what users install (runtime dependencies, engines, ...). Docs, README, tests, lint
-# config, workflows, package-lock.json and devDependency bumps never release or even build here; they
-# go out with the next plugin release. The paths below are a first filter; the "changes" job then runs
-# .github/scripts/should-release.sh, which also ignores devDependency-only edits to package.json.
-# Keep the two in step. workflow_dispatch releases by hand, skipping the check.
+# A release happens when package.json has a version that isn't on npm yet. The paths below are a first
+# filter (a version bump always touches package.json). The plugin files are listed too, so a plugin
+# change that reached master without a version bump fails the "changes" job loudly instead of being
+# skipped. .github/scripts/should-release.sh decides what counts as a plugin change; keep the two in
+# step. workflow_dispatch publishes the current version if it isn't on npm yet.
 on:
   push:
     branches: [master]
@@ -43,29 +40,58 @@ concurrency:
 
 jobs:
   changes:
-    name: Check for plugin changes
+    name: Check for a new version
     runs-on: ubuntu-latest
     outputs:
       release: ${{ steps.check.outputs.release }}
+      version: ${{ steps.check.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # the commit before the push, to diff against
           persist-credentials: false
 
-      - name: Did the plugin change?
+      - name: Is there a new version to release?
         id: check
         env:
           BEFORE: ${{ github.event.before }}
           EVENT: ${{ github.event_name }}
         run: |
-          if [ "$EVENT" = "workflow_dispatch" ]; then
-            echo "Started by hand, releasing."
-            echo "release=true" >> "$GITHUB_OUTPUT"
-          else
-            bash .github/scripts/should-release.sh "$BEFORE" | tee check.log
-            grep -E '^release=(true|false)$' check.log >> "$GITHUB_OUTPUT"
+          NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          if npm view "$NAME@$VERSION" version > /dev/null 2>&1; then
+            # Already published. Fine if this push raised the version (a re-run of its release) or didn't
+            # change the plugin; an error if the plugin changed without a version bump.
+            OLD=$(git show "$BEFORE:package.json" 2> /dev/null | node -p 'JSON.parse(require("node:fs").readFileSync(0, "utf8")).version' 2> /dev/null || true)
+            if [ "$EVENT" != "workflow_dispatch" ] && [ "$OLD" = "$VERSION" ] &&
+              bash .github/scripts/should-release.sh "$BEFORE" | tee check.log | grep -qx 'release=true'; then
+              cat check.log
+              echo "::error file=package.json::The plugin changed but $VERSION is already on npm. Raise the version" \
+                "in package.json and add a CHANGELOG.md entry in a pull request."
+              exit 1
+            fi
+            echo "$NAME@$VERSION is already on npm, nothing to release."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+
+          # Never publish a version lower than the latest one, which would move users backwards.
+          LATEST=$(npm view "$NAME" dist-tags.latest 2>/dev/null || echo 0.0.0)
+          if [ "$(printf '%s\n%s\n' "$LATEST" "$VERSION" | sort -V | tail -n 1)" != "$VERSION" ]; then
+            echo "::error file=package.json::$VERSION is lower than $LATEST on npm."
+            exit 1
+          fi
+
+          ESCAPED=${VERSION//./\\.}
+          if ! grep -Eq "^#{2,3} \[$ESCAPED\]" CHANGELOG.md; then
+            echo "::error file=CHANGELOG.md::CHANGELOG.md has no entry for $VERSION."
+            exit 1
+          fi
+
+          echo "Releasing $NAME@$VERSION (latest on npm is $LATEST)."
+          echo "release=true" >> "$GITHUB_OUTPUT"
 
   test:
     needs: changes
@@ -98,64 +124,33 @@ jobs:
       - name: Update npm
         run: npm install -g npm@latest
 
-      - name: Work out version
-        id: version
-        env:
-          RUN_NUMBER: ${{ github.run_number }}
-        run: |
-          NAME=$(node -p "require('./package.json').name")
-          BASE=$(node -p "require('./package.json').version.split('.').slice(0, 2).join('.')")
-          VERSION="$BASE.$RUN_NUMBER"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
-          # A re-run of the same workflow run has the same run number, so it was already published.
-          if npm view "$NAME@$VERSION" version > /dev/null 2>&1; then
-            echo "$NAME@$VERSION is already on npm, nothing to publish."
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # Never publish a version lower than the latest one, which would move users backwards.
-          LATEST=$(npm view "$NAME" dist-tags.latest 2>/dev/null || echo 0.0.0)
-          if [ "$(printf '%s\n%s\n' "$LATEST" "$VERSION" | sort -V | tail -n 1)" != "$VERSION" ]; then
-            echo "::error::$VERSION is lower than $LATEST on npm. Raise MAJOR.MINOR in package.json."
-            exit 1
-          fi
-
-          echo "Publishing $NAME@$VERSION (latest on npm is $LATEST)."
-          echo "publish=true" >> "$GITHUB_OUTPUT"
-
       - name: Install dependencies
-        if: steps.version.outputs.publish == 'true'
         run: npm ci
-
-      - name: Set version
-        if: steps.version.outputs.publish == 'true'
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: npm version "$VERSION" --no-git-tag-version --allow-same-version
 
       # prepublishOnly runs lint, build and the tests again on the exact files being published.
       - name: Publish to npm
-        if: steps.version.outputs.publish == 'true'
         run: npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       # gh creates the tag through the API on the commit that was built, so no git credentials are needed.
       - name: Create GitHub Release
-        if: steps.version.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ needs.changes.outputs.version }}
         run: |
           if gh release view "v$VERSION" > /dev/null 2>&1; then
             echo "Release v$VERSION already exists."
             exit 0
           fi
+          # The notes are this version's CHANGELOG.md entry, without its heading.
+          awk -v v="$VERSION" '
+            /^#{2,3} \[/ { if (found) exit; if (index($0, "[" v "]")) { found = 1; next } }
+            found { print }
+          ' CHANGELOG.md > notes.md
           gh release create "v$VERSION" \
             --title "v$VERSION" \
             --target "$GITHUB_SHA" \
-            --generate-notes \
+            --notes-file notes.md \
             --latest

@@ -40,7 +40,7 @@ npm run lint && npm test
 - **`README.md`**: always check it, and update it when anything it describes changes. Keep it to what most users need (what works, limitations, installation, configuration) and put details in a guide.
 - **`docs/guides/`**: user guides linked from the README's "More documentation" table: [`how-it-works.md`](docs/guides/how-it-works.md) (login, tokens, API calls, advanced settings) and [`testing-locally.md`](docs/guides/testing-locally.md). Update the one whose subject changed. Link to them from the README with full `https://github.com/.../blob/master/...` URLs, because `docs/` isn't published to npm and relative links break there.
 - **`config.schema.json`**: when settings change.
-- **`CHANGELOG.md`**: kept for history up to 0.2.0. Don't edit it. Release notes for later versions are generated on each GitHub Release from the merged pull requests, so PR titles should read well to users.
+- **`CHANGELOG.md`**: every change to the plugin adds an entry at the top for its new version (`## [1.2.3](compare link) (date)`, with `### Features`, `### Bug Fixes`, ... sections, written for users). The entry becomes the GitHub Release notes.
 
 ## 6. Write a change note in `docs/changes/`
 
@@ -51,5 +51,5 @@ Every change that isn't trivial gets `docs/changes/YYYY-MM-DD-short-name.md` fro
 - One logical change per PR, on a branch, never straight to `master`.
 - Fill in the checklist in [`.github/pull_request_template.md`](.github/pull_request_template.md).
 - Commit messages: `type(scope): summary` (`feat`, `fix`, `docs`, `test`, `chore`, `refactor`).
-- Every merge to `master` that changes the plugin (`src/`, `config.schema.json`, `tsconfig.json`, or `package.json` beyond devDependencies and scripts) publishes a new version to npm and a GitHub Release, through `.github/workflows/release.yml`. Docs, README, tests, workflows and devDependency bumps never release on their own; `.github/scripts/should-release.sh` decides. The patch number is set by CI, so don't edit the version in `package.json`, except to change MAJOR.MINOR (keep the patch at `.0`) when starting a new minor or major line. Treat every merge as a release.
+- A PR that changes the plugin (`src/`, `config.schema.json`, `tsconfig.json`, or `package.json` beyond devDependencies and scripts; `.github/scripts/should-release.sh` decides) must raise the version with `npm version patch|minor|major --no-git-tag-version` (it updates `package.json` and `package-lock.json` together) and add its `CHANGELOG.md` entry. The tests check this on every PR (`.github/scripts/check-version.sh`). Merging to `master` then publishes exactly that version to npm and creates the `v<version>` tag and GitHub Release, through `.github/workflows/release.yml`. Docs, README, tests, workflows and devDependency bumps need no version bump and don't release. A Dependabot PR that bumps a runtime dependency needs a version bump commit before it can merge. Treat every version bump as a release.
 - Never commit secrets, `.env` files or real account data.
