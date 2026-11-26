@@ -141,3 +141,7 @@ docs
 AGENTS.md
 CLAUDE.md
 SECURITY.md
+
+# Local test Homebridge and its script
+.homebridge-local
+scripts

@@ -23,7 +23,7 @@ This is a Homebridge plugin built for Daikin Air Purifier (based on MCK70W model
 | Live status of power, mode, fan speed and humidifier | The purifier's local IP (`host`) |
 | Control from HomeKit (on/off, fan speed, humidifier) | Also your Daikin account email and password, plus the cloud settings below |
 
-Status is always read on your local network. Newer purifier firmware (for example `3_15_0`) has removed local control, so control goes through the Daikin cloud (`https://api.daikinsmartdb.jp`), the same way the Daikin Smart App does.
+Status is always read on your local network. Newer purifier firmware (for example `3_15_0`) has removed local control, so control goes through the Daikin cloud (`https://api.daikinsmartdb.jp`), the same way the Daikin Smart App does. See [How it works](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/docs/guides/how-it-works.md) for details.
 
 > **Control is new and not yet confirmed working end to end.** The email/password login follows the Daikin Smart App's current login. If it fails, the log says why, and sensors and status keep working.
 
@@ -32,6 +32,16 @@ Status is always read on your local network. Newer purifier firmware (for exampl
 **Control currently doesn't work on newer firmware.** Since the Daikin Smart App was updated, the `clientSecret` and `terminalId` that control needs can no longer be captured with an HTTPS proxy: the app rejects intercepted connections (for example with error `0406`). Without them the plugin runs in local-only mode, where sensors and status work but the purifier can't be controlled from HomeKit.
 
 A way to get these credentials is being investigated. Follow [#2](https://github.com/dylannlaw/homebridge-daikin-air-purifier/issues/2) for updates. If you already have a `clientSecret` and `terminalId` from an older capture, control may still work with them.
+
+## Installation
+
+Search for **Homebridge Daikin Air Purifier** on the **Plugins** page of the Homebridge UI and install it, or install it from the command line:
+
+```sh
+npm install -g @dylannlaw/homebridge-daikin-air-purifier
+```
+
+Then configure it in the plugin's settings in the Homebridge UI, or in your `config.json` as below.
 
 ## Configuration
 
@@ -71,26 +81,16 @@ With control:
 
 `clientSecret` and `terminalId` have to be captured once from the Daikin Smart App with an HTTPS proxy. After that, the plugin logs in by itself. This capture no longer works with the current app; see [Known limitations](#known-limitations).
 
-### How login works
-The plugin logs in like the Daikin Smart App:
-1. It starts a login session at `https://prod-dsioti.daikinsmartdb.jp/dsioti/oauth2/authorize` (OAuth with PKCE).
-2. It sends your email and password to `https://prod-dsioti.daikinsmartdb.jp/dsioti/oauth2/auth`, which returns an authorization code.
-3. It exchanges the code for tokens at `https://api.daikinsmartdb.jp/premise/dsiot/login`.
+Advanced settings (`clientId`, `uuid`, `code`, `refreshToken`) are described in [How it works](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/docs/guides/how-it-works.md#advanced-settings). Leave them empty unless you need them.
 
-Tokens are saved to `<homebridge storage>/daikin-air-purifier-<name>.json` (readable only by the Homebridge user) and renewed automatically. If they expire, the plugin logs in again with your email and password. If the email or password is rejected, it stops retrying until Homebridge restarts, so your account isn't locked.
+## More documentation
 
-### Advanced settings
-Leave these empty unless you need them:
-- `clientId`: defaults to the Daikin Smart App's client ID.
-- `uuid`: an app install ID. The plugin generates and keeps one.
-- `code`: a single-use authorization code captured from the app, instead of email and password.
-- `refreshToken`: a `refresh_token` captured from the app, instead of email and password.
-
-### How API calls are kept low
-- Status is read from the purifier on your local network once per `cacheDuration`, and that one result is shared by every HomeKit request.
-- The Daikin cloud API is called only when you change a setting. Changes made within 1 second of each other (for example, dragging the fan speed slider) are sent as one request.
-- If the API responds with HTTP 429, the plugin stops calling it for 5 minutes.
-
+| Guide | Read it to |
+|---|---|
+| [How it works](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/docs/guides/how-it-works.md) | Understand how status and control work, how the plugin logs in and stores tokens, how it keeps API calls low, and the advanced settings. |
+| [Testing locally with your iPhone](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/docs/guides/testing-locally.md) | Try the plugin, or a change that isn't released yet, in a private test Homebridge on your computer and the Home app on your iPhone, with one command. |
+| [Security policy](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/SECURITY.md) | Report a security problem privately. |
+| [Contributing](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/AGENTS.md) | Change the plugin: the workflow, checks and docs every change follows. |
 
 ## Changelog
 
