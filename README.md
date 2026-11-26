@@ -30,7 +30,7 @@ When your Daikin account is set, status is read from the Daikin cloud (`https://
 
 **Control currently doesn't work on newer firmware.** Since the Daikin Smart App was updated, the `clientSecret` and `terminalId` that control needs can no longer be captured with an HTTPS proxy: the app rejects intercepted connections (for example with error `0406`). Without a `clientSecret`, status is read from the local IP only; without a `terminalId`, the purifier can't be controlled from HomeKit.
 
-A way to get these credentials is being investigated. Follow [#2](https://github.com/dylannlaw/homebridge-daikin-air-purifier/issues/2) for updates. If you already have a `clientSecret` and `terminalId` from an older capture, control may still work with them.
+[Capturing credentials with mitmproxy](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/docs/guides/capturing-credentials.md) describes the approach still worth trying (WireGuard mode, which the app can't bypass the way it bypasses a proxy); it hasn't been confirmed to work. Follow [#2](https://github.com/dylannlaw/homebridge-daikin-air-purifier/issues/2) for updates. If you already have a `clientSecret` and `terminalId` from an older capture, control may still work with them.
 
 ## Installation
 
@@ -77,7 +77,7 @@ Daikin cloud, with control (`host` is optional and only used as a fallback):
 | `terminalId` | **Control** | The `terminalid` query parameter of the app's `https://api.daikinsmartdb.jp/cleaner/set_control_info` request, sent when you change a setting in the app. Cloud status works without it. |
 | `port` | Optional | Leave empty: the plugin reads it from the purifier (`port=` at `http://<purifier IP>/common/basic_info`), or uses `30050` when there's no `host`. |
 
-`clientSecret` and `terminalId` have to be captured once from the Daikin Smart App with an HTTPS proxy. After that, the plugin logs in by itself. This capture no longer works with the current app; see [Known limitations](#known-limitations).
+`clientSecret` and `terminalId` have to be captured once from the Daikin Smart App's traffic; [Capturing credentials with mitmproxy](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/docs/guides/capturing-credentials.md) shows how. After that, the plugin logs in by itself. This capture may not work with the current app; see [Known limitations](#known-limitations).
 
 If some of these are filled in but not all, the log names the missing settings, for example `Control is off because these settings are missing: terminalId.`
 
@@ -96,6 +96,7 @@ A value below the minimum is raised to it, with a warning in the log.
 | Guide | Read it to |
 |---|---|
 | [How it works](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/docs/guides/how-it-works.md) | Understand how status is read (cloud first, local IP as fallback), how each `set_control_info` value is obtained, how the plugin logs in and stores tokens, how it keeps API calls low, the advanced settings, and the API reference. |
+| [Capturing credentials with mitmproxy](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/docs/guides/capturing-credentials.md) | Read `clientSecret` and `terminalId` from the Daikin Smart App's traffic with mitmproxy, and what to do if the app refuses the connection. |
 | [Testing locally with your iPhone](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/docs/guides/testing-locally.md) | Try the plugin, or a change that isn't released yet, in a private test Homebridge on your computer and the Home app on your iPhone, with one command. |
 | [Security policy](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/SECURITY.md) | Report a security problem privately. |
 | [Contributing](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/AGENTS.md) | Change the plugin: the workflow, checks and docs every change follows. |

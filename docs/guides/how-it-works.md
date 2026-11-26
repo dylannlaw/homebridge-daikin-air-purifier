@@ -1,6 +1,6 @@
 # How it works
 
-> Part of the [Homebridge Daikin Air Purifier](../../README.md) docs. See also [Testing locally](testing-locally.md).
+> Part of the [Homebridge Daikin Air Purifier](../../README.md) docs. See also [Testing locally](testing-locally.md) and [Capturing credentials](capturing-credentials.md).
 
 ## Cloud status, local fallback, cloud control
 
