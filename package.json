@@ -22,7 +22,7 @@
     "watch": "npm run build && npm link && nodemon",
     "build": "rimraf ./dist && tsc",
     "test": "npm run build && node --test --test-force-exit 'test/*.test.mjs'",
-    "test:coverage": "npm run build && node --test --test-force-exit --experimental-test-coverage --test-coverage-include='dist/**' 'test/*.test.mjs'",
+    "test:coverage": "npm run build && node -e \"fs.mkdirSync('coverage',{recursive:true})\" && node --enable-source-maps --test --test-force-exit --experimental-test-coverage --test-coverage-include=\"src/**\" --test-coverage-include=\"dist/**\" --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info \"test/*.test.mjs\"",
     "prepublishOnly": "npm run lint && npm test"
   },
   "keywords": [

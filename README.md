@@ -1,6 +1,9 @@
 
 # Homebridge Daikin Air Purifier
 
+[![Build](https://github.com/dylannlaw/homebridge-daikin-air-purifier/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/dylannlaw/homebridge-daikin-air-purifier/actions/workflows/build.yml)
+[![codecov](https://codecov.io/gh/dylannlaw/homebridge-daikin-air-purifier/graph/badge.svg?branch=master)](https://codecov.io/gh/dylannlaw/homebridge-daikin-air-purifier)
+
 This is a Homebridge plugin built for Daikin Air Purifier (based on MCK70W model). 
 
 ## What works

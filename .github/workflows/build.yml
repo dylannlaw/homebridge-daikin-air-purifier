@@ -39,6 +39,16 @@ jobs:
       - name: Build and test
         run: npm run test:coverage
 
+      # One upload is enough; the other Node.js versions run the same tests.
+      # Pull requests from forks have no access to the token, so a failed upload doesn't fail the build.
+      - name: Upload coverage to Codecov
+        if: matrix.node-version == '24.x'
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage/lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
   # Publishes to npm when package.json has a version that isn't on npm yet, after every test job has passed.
   release:
     name: Publish to npm
