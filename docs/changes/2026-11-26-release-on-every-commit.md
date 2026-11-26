@@ -31,7 +31,7 @@ Considered and not picked:
 - `.github/workflows/tests.yml`: tests on PRs and pushes; reusable.
 - `.github/workflows/release.yml`: version, publish to npm, tag and GitHub Release on every shipping commit to `master`.
 - `AGENTS.md`: the version and changelog rules now match the automatic release.
-- `README.md`: the Changelog section points to GitHub Releases.
+- `README.md`: the Changelog section points to GitHub Releases, and a row of badges under the title (like MacAwake's) shows the npm version, downloads (last 18 months and per month), test status, stars, supported Homebridge and Node.js versions, and the license. Shields.io redirects its "total downloads" badge to the 18-month count because npm only keeps that much history, so the badge says so.
 
 ## Docs updated
 
@@ -43,6 +43,8 @@ Considered and not picked:
 - ✅ The version step's shell logic, run locally against the real npm registry: `0.2.3` and `0.2.41` are accepted over the current `latest` (0.2.0), and a lower version (`0.1.5` vs `0.2.0`) is refused.
 - ✅ `npm version 0.2.41 --no-git-tag-version` updates `package.json` and `package-lock.json` as expected.
 - ✅ `npm run lint && npm test` passes.
+- ✅ Every shields.io badge URL returns a badge with real values (v0.2.0, 1.1k downloads in 18 months, 71/month, the Node.js range, the license).
+- ❌ The test-status badge shows "no status" until `tests.yml` has run on `master`. The README on npm and in the Homebridge UI only updates with the next release, because a README-only change doesn't release.
 - ❌ The workflows have not run on GitHub yet. The first push to `master` that touches shipping files after this merges is the real test. Merging this PR itself triggers a release, because it changes `release.yml`.
 - ❌ Not checked whether trusted publishing is set up on npmjs.com for this repository. If it is, the trusted publisher's workflow file name must be changed from `build.yml` to `release.yml`, or publishing fails; otherwise the `NPM_TOKEN` secret is used.
 - ❌ If branch protection requires the old `Test (Node.js …)` checks from `build.yml`, they now come from `tests.yml` under the same job names; check the required checks still match.
