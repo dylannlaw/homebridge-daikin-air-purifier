@@ -17,21 +17,20 @@
 # - Third-party actions are pinned to a commit SHA. Dependabot proposes updates.
 name: Release
 
-# Only changes to what ships build and release: the plugin code, its settings schema, its dependencies,
-# its build config and this workflow. Docs and tests alone never make a release; they go out with the
-# next one. Dependency bumps from Dependabot do release, so users get them.
-# (workflow_dispatch still lets you release by hand.)
+# Only changes to the plugin itself release: src/**, config.schema.json, tsconfig.json, and package.json
+# when it changes what users install (runtime dependencies, engines, ...). Docs, README, tests, lint
+# config, workflows, package-lock.json and devDependency bumps never release or even build here; they
+# go out with the next plugin release. The paths below are a first filter; the "changes" job then runs
+# .github/scripts/should-release.sh, which also ignores devDependency-only edits to package.json.
+# Keep the two in step. workflow_dispatch releases by hand, skipping the check.
 on:
   push:
     branches: [master]
     paths:
       - "src/**"
       - "config.schema.json"
-      - "package.json"
-      - "package-lock.json"
       - "tsconfig.json"
-      - ".npmignore"
-      - ".github/workflows/release.yml"
+      - "package.json"
   workflow_dispatch:
 
 permissions:
@@ -43,13 +42,40 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  changes:
+    name: Check for plugin changes
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.check.outputs.release }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the commit before the push, to diff against
+          persist-credentials: false
+
+      - name: Did the plugin change?
+        id: check
+        env:
+          BEFORE: ${{ github.event.before }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            echo "Started by hand, releasing."
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            bash .github/scripts/should-release.sh "$BEFORE" | tee check.log
+            grep -E '^release=(true|false)$' check.log >> "$GITHUB_OUTPUT"
+          fi
+
   test:
+    needs: changes
+    if: needs.changes.outputs.release == 'true'
     uses: ./.github/workflows/tests.yml
 
   release:
     name: Publish to npm
-    needs: test
-    if: github.ref == 'refs/heads/master'
+    needs: [changes, test]
+    if: needs.changes.outputs.release == 'true' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
 
     permissions:
