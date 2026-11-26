@@ -1,0 +1,71 @@
+# Lints, builds and tests the plugin on every supported Node.js version, on every pull request and every
+# push to master that touches code or tests. Documentation-only changes skip it. It never publishes.
+# release.yml calls this same workflow before it publishes, so a release is only ever made from code
+# that passed here. Keep the two paths-ignore lists the same.
+name: Tests
+
+on:
+  push:
+    branches: [master]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - "LICENSE"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/CODEOWNERS"
+      - ".github/dependabot.yml"
+  pull_request:
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - "LICENSE"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/CODEOWNERS"
+      - ".github/dependabot.yml"
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test (Node.js ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # The Node.js versions in package.json "engines".
+        node-version: [22.x, 24.x, 26.x]
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build and test
+        run: npm run test:coverage
+
+      # One upload is enough: the other Node.js versions run the same tests. Pull requests from forks
+      # can't read CODECOV_TOKEN, so a failed upload doesn't fail the build. Not run when another
+      # workflow calls this one (release.yml), so a release never depends on Codecov.
+      - name: Upload coverage to Codecov
+        if: matrix.node-version == '24.x' && github.workflow == 'Tests'
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          files: coverage/lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false

@@ -1,8 +1,17 @@
 
 # Homebridge Daikin Air Purifier
 
-[![Build](https://github.com/dylannlaw/homebridge-daikin-air-purifier/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/dylannlaw/homebridge-daikin-air-purifier/actions/workflows/build.yml)
-[![codecov](https://codecov.io/gh/dylannlaw/homebridge-daikin-air-purifier/graph/badge.svg?branch=master)](https://codecov.io/gh/dylannlaw/homebridge-daikin-air-purifier)
+<p>
+  <a href="https://www.npmjs.com/package/@dylannlaw/homebridge-daikin-air-purifier"><img src="https://img.shields.io/npm/v/@dylannlaw/homebridge-daikin-air-purifier?color=666666&labelColor=444444" alt="Latest version on npm"></a>
+  <a href="https://www.npmjs.com/package/@dylannlaw/homebridge-daikin-air-purifier"><img src="https://img.shields.io/npm/d18m/@dylannlaw/homebridge-daikin-air-purifier?color=666666&labelColor=444444" alt="Downloads in the last 18 months"></a>
+  <a href="https://www.npmjs.com/package/@dylannlaw/homebridge-daikin-air-purifier"><img src="https://img.shields.io/npm/dm/@dylannlaw/homebridge-daikin-air-purifier?color=666666&labelColor=444444" alt="Downloads per month"></a>
+  <a href="https://github.com/dylannlaw/homebridge-daikin-air-purifier/actions/workflows/tests.yml"><img src="https://github.com/dylannlaw/homebridge-daikin-air-purifier/actions/workflows/tests.yml/badge.svg?branch=master" alt="Tests on the master branch"></a>
+  <a href="https://codecov.io/gh/dylannlaw/homebridge-daikin-air-purifier"><img src="https://img.shields.io/codecov/c/github/dylannlaw/homebridge-daikin-air-purifier/master?color=666666&labelColor=444444" alt="Test coverage on the master branch"></a>
+  <a href="https://github.com/dylannlaw/homebridge-daikin-air-purifier"><img src="https://img.shields.io/github/stars/dylannlaw/homebridge-daikin-air-purifier?style=social" alt="Stars"></a>
+  <img src="https://img.shields.io/badge/homebridge-1.8%2B%20%7C%202.x-666666?labelColor=444444" alt="Homebridge 1.8+ or 2.x">
+  <img src="https://img.shields.io/node/v/@dylannlaw/homebridge-daikin-air-purifier?color=666666&labelColor=444444" alt="Supported Node.js versions">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-666666?labelColor=444444" alt="Apache 2.0 license"></a>
+</p>
 
 This is a Homebridge plugin built for Daikin Air Purifier (based on MCK70W model). 
 
@@ -17,6 +26,12 @@ This is a Homebridge plugin built for Daikin Air Purifier (based on MCK70W model
 Status is always read on your local network. Newer purifier firmware (for example `3_15_0`) has removed local control, so control goes through the Daikin cloud (`https://api.daikinsmartdb.jp`), the same way the Daikin Smart App does.
 
 > **Control is new and not yet confirmed working end to end.** The email/password login follows the Daikin Smart App's current login. If it fails, the log says why, and sensors and status keep working.
+
+## Known limitations
+
+**Control currently doesn't work on newer firmware.** Since the Daikin Smart App was updated, the `clientSecret` and `terminalId` that control needs can no longer be captured with an HTTPS proxy: the app rejects intercepted connections (for example with error `0406`). Without them the plugin runs in local-only mode, where sensors and status work but the purifier can't be controlled from HomeKit.
+
+A way to get these credentials is being investigated. Follow [#2](https://github.com/dylannlaw/homebridge-daikin-air-purifier/issues/2) for updates. If you already have a `clientSecret` and `terminalId` from an older capture, control may still work with them.
 
 ## Configuration
 
@@ -54,7 +69,7 @@ With control:
 | `terminalId` | The `terminalid` query parameter of the app's `https://api.daikinsmartdb.jp/cleaner/set_control_info` request, sent when you change a setting in the app. |
 | `port` | Usually `30050`. It's also shown as `port=` at `http://<purifier IP>/common/basic_info`. |
 
-`clientSecret` and `terminalId` have to be captured once from the Daikin Smart App with an HTTPS proxy. After that, the plugin logs in by itself.
+`clientSecret` and `terminalId` have to be captured once from the Daikin Smart App with an HTTPS proxy. After that, the plugin logs in by itself. This capture no longer works with the current app; see [Known limitations](#known-limitations).
 
 ### How login works
 The plugin logs in like the Daikin Smart App:
@@ -79,4 +94,4 @@ Leave these empty unless you need them:
 
 ## Changelog
 
-See [CHANGELOG](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/CHANGELOG.md).
+Every change to the plugin is released to npm automatically as soon as it is merged. See [Releases](https://github.com/dylannlaw/homebridge-daikin-air-purifier/releases) for what changed in each version, and the [CHANGELOG](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/CHANGELOG.md) for versions up to 0.2.0.

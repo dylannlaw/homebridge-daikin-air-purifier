@@ -39,7 +39,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/node": "^22.10.0",
+    "@types/node": "^26.6.6",
     "eslint": "^10.9.0",
     "homebridge": "^2.4.0",
     "nodemon": "^3.1.14",
