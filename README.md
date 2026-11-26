@@ -15,6 +15,10 @@
   <a href="https://github.com/dylannlaw/homebridge-daikin-air-purifier"><img src="https://img.shields.io/github/stars/dylannlaw/homebridge-daikin-air-purifier?style=social" alt="Stars"></a>
 </p>
 
+<p align="center">
+  <img width="1429" height="194" alt="Screenshot 2026-11-26 at 23 53 02" src="https://github.com/user-attachments/assets/998c3d44-1d60-43a0-afa8-b808c69ceadc" />
+</p>
+
 ## Contents
 
 - [What it can do](#what-it-can-do)
