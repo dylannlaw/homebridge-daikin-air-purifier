@@ -31,7 +31,7 @@ No new dependencies.
 
 ## Docs updated
 
-- `README.md` (the redesigned one): an "Eco, Pollen and Circulator modes" card in "What it can do", the `modeSwitches` row in "All settings", and a "Mode switches" section under "Using it in the Home app".
+- `README.md` (the redesigned one): an "Eco, Pollen and Circulator modes" card in "What it can do", the `modeSwitches` row in "All settings", and a "Mode switches" section under "Using it in the Home app". That section has a table matching each switch to the Japanese label on the purifier's panel (節電, 花粉, サーキュレーター, and おまかせ for Auto) and what the mode does. The switches themselves keep English names so Siri and the English Home app recognise them.
 - `docs/guides/how-it-works.md`: what the switches send in `set_control_info`, and that the mode numbers are unconfirmed.
 - `docs/plans/mode-switches.md`: marked approved and implemented.
 
