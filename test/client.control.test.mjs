@@ -1,13 +1,11 @@
 import { describe, test, afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  API, HOST, PASSWORD_CONFIG, hap, flushSet, makeClient, mockServers, rejection, settle, tempStorage, writeTokens,
+  DEVICE_ID, DEVICE_PASSWORD, HOST, LOGIN, PASSWORD_CONFIG, SET, TOKEN, hap, flushSet, makeClient, mockServers,
+  rejection, settle, tempStorage, writeTokens,
 } from './helpers.mjs';
 
-const SET = `${API}/cleaner/set_control_info`;
 const UNIT = `${HOST}/cleaner/get_unit_info`;
-const TOKEN = `${API}/premise/dsiot/token`;
-const LOGIN = `${API}/premise/dsiot/login`;
 
 afterEach(() => mock.timers.reset());
 
@@ -23,20 +21,21 @@ async function readyClient(overrides = {}) {
 }
 
 describe('changing settings', () => {
-  test('sends one request with every setting, the terminal ID and port, and the access token', async () => {
+  test('sends one GET with exactly the spec\'s parameters: device credentials, port, terminal ID and every setting', async () => {
     const { client, server } = await readyClient();
     await flushSet(mock, client.setControlInfo({ pow: '0' }));
     const req = server.last(SET);
     assert.equal(server.count(SET), 1);
-    assert.equal(req.headers.Authorization, 'Bearer VALID');
-    assert.deepEqual(
-      { pow: req.params.pow, mode: req.params.mode, airvol: req.params.airvol, humd: req.params.humd },
-      { pow: '0', mode: '0', airvol: '3', humd: '2' },
-    );
-    assert.equal(req.params.terminalid, 'T123');
-    assert.equal(req.params.port, '30050');
-    assert.equal(req.params.id, 'ID');
-    assert.equal(req.params.spw, 'SPW');
+    assert.equal(req.method, 'get');
+    assert.deepEqual(req.params, {
+      id: DEVICE_ID, spw: DEVICE_PASSWORD, port: '30050', terminalid: 'T123', pow: '0', mode: '0', airvol: '3', humd: '2',
+    });
+  });
+
+  test('sends the bare access token in the authorization header, without a Bearer prefix', async () => {
+    const { client, server } = await readyClient();
+    await flushSet(mock, client.setControlInfo({ pow: '0' }));
+    assert.equal(server.last(SET).authorization, 'VALID');
   });
 
   test('waits for 1 second of quiet before sending', async () => {
@@ -174,7 +173,7 @@ describe('when a change fails', () => {
     await flushSet(mock, client.setControlInfo({ pow: '0' }));
     assert.equal(server.count(SET), 2);
     assert.equal(server.count(TOKEN), 1);
-    assert.equal(server.last(SET).headers.Authorization, 'Bearer ACCESS2');
+    assert.equal(server.last(SET).authorization, 'ACCESS2');
   });
 
   test('a 403 is treated like a 401', async () => {
@@ -192,7 +191,7 @@ describe('when a change fails', () => {
 
   test('a change fails without a request when no login is possible', async () => {
     mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1_000_000 });
-    const server = mockServers({ [`${API}/premise/dsiot/login`]: () => [401, { error: 'invalid_grant' }] });
+    const server = mockServers({ [LOGIN]: () => [401, { error: 'invalid_grant' }] });
     const { client } = makeClient({ ...PASSWORD_CONFIG, clientSecret: 'wrong' });
     await settle();
     const error = await rejection(flushSet(mock, client.setControlInfo({ pow: '0' })));

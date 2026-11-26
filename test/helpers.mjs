@@ -14,6 +14,15 @@ export const HOST = '192.168.1.156';
 export const AUTH = 'prod-dsioti.daikinsmartdb.jp/dsioti/oauth2';
 export const API = 'api.daikinsmartdb.jp';
 
+// Route keys for the endpoints in docs/reference/daikin-smart-api.openapi.yaml. The code exchange and the token
+// renewal share POST /dsioti/oauth2/token, so the mock tells them apart by grant_type (see mockServers).
+export const LOGIN = `${AUTH}/token#authorization_code`;
+export const TOKEN = `${AUTH}/token#refresh_token`;
+export const USERINFO = `${AUTH}/userinfo`;
+export const SET = `${API}/cleaner/set_control_info`;
+export const DEVICE_ID = 'FAKE_L_USER_ID';
+export const DEVICE_PASSWORD = 'FAKE_L_PASSWORD';
+
 export const UNIT_INFO = 'ret=OK,ctrl_info=pow%3d1%2cmode%3d0%2cairvol%3d3%2chumd%3d2,' +
   'sensor_info=htemp%3d26.0%2chhum%3d64%2cpm25%3d2%2cdust%3d1%2codor%3d3,' +
   'unit_status=filter%3d0%2cstrmr_cln%3d1%2cwater_supply%3d1%2cunit_err%3d0000';
@@ -26,7 +35,8 @@ export const PASSWORD_CONFIG = Object.freeze({
 export const LOCAL_CONFIG = Object.freeze({ name: 'Test', host: HOST, cacheDuration: 60 });
 
 /**
- * Routes every axios request to `routes`, keyed by "host/path" (e.g. `${API}/cleaner/set_control_info`).
+ * Routes every axios request to `routes`, keyed by "host/path" (e.g. `${API}/cleaner/set_control_info`), plus
+ * "#<grant_type>" for a request whose body has one (e.g. LOGIN and TOKEN).
  * A route returns [status, data, headers] or throws to simulate a network error. Unrouted requests get 404.
  * Default routes behave like the real servers on a successful login, shaped like a capture of the Daikin Smart App.
  */
@@ -40,17 +50,22 @@ export function mockServers(overrides = {}) {
       return [302, {}, { location: `https://prod-deneb-ui.daikinsmartdb.jp/#/login?state=serverstate123&display=daikinsmartapp&uuid=${params.uuid}&lang=en` }];
     },
     [`${AUTH}/auth`]: () => [200, {}, { location: `daikinsmartapp://callback?code=CODE123&state=${clientState}` }],
-    [`${API}/premise/dsiot/login`]: () => [200, { rsc: 2000, access_token: 'ACCESS1', refresh_token: 'REFRESH1', expires_in: 3600 }],
-    [`${API}/premise/dsiot/token`]: () => [200, { rsc: 2000, access_token: 'ACCESS2', refresh_token: 'REFRESH2', expires_in: 3600 }],
-    [`${API}/cleaner/set_control_info`]: () => [200, 'ret=OK'],
+    [LOGIN]: () => [200, { token_type: 'Bearer', id_token: 'ID1', access_token: 'ACCESS1', refresh_token: 'REFRESH1', expires_in: 3600 }],
+    [TOKEN]: () => [200, { token_type: 'Bearer', id_token: 'ID2', access_token: 'ACCESS2', refresh_token: 'REFRESH2', expires_in: 3600 }],
+    [USERINFO]: () => [200, { rsc: 2000, uid: 'FAKE_UID', l_user_id: DEVICE_ID, l_password: DEVICE_PASSWORD }],
+    [SET]: () => [200, 'ret=OK'],
     ...overrides,
   };
 
   axios.defaults.adapter = async (config) => {
     const url = new URL(config.url);
-    const key = url.host + url.pathname;
     const body = parseBody(config.data);
-    const request = { method: config.method, key, params: config.params ?? {}, body, headers: config.headers };
+    const key = url.host + url.pathname + (body?.grant_type ? `#${body.grant_type}` : '');
+    const sent = config.headers;
+    const request = {
+      method: config.method, key, params: config.params ?? {}, body, headers: sent,
+      authorization: sent?.get?.('authorization'), contentType: sent?.get?.('content-type'),
+    };
     requests.push(request);
     const route = routes[key];
     let result;

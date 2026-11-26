@@ -1,49 +1,50 @@
-# OpenAPI reference, conformance tests and Codecov coverage
+# Follow the OpenAPI reference for API calls, and Codecov coverage
 
 ## Summary
 
-Added the unofficial Daikin Smart API OpenAPI reference to `docs/reference/`, tests that check the client's HTTP calls against it, a research note on where the plugin differs from it, and Codecov coverage upload in CI with a badge in the README. Also fixed test runs that sometimes skipped a whole test file without failing. The only plugin code change is one line that lets the token-renewal timer not keep the process alive.
+The plugin's cloud calls now follow the unofficial Daikin Smart API reference (added in `docs/reference/`):
+- The code exchange and token renewal use `POST /dsioti/oauth2/token`, form-encoded.
+- The device credentials come from `GET /dsioti/oauth2/userinfo`; before, the literal `ID` / `SPW` was sent.
+- `set_control_info` sends the bare access token.
+
+Unit tests cover each call. CI uploads coverage to Codecov, and the README shows a badge. Test runs no longer skip files at random.
 
 ## Why
 
-A new capture of the Daikin Smart App's traffic (November 2026) was written up as an OpenAPI spec. The request was to find out which scenarios work, test the implementation against the spec, keep the spec as a reference, check for leaked credentials, and report coverage to Codecov (the `CODECOV_TOKEN` secret has been added to the repository).
+A new capture of the Daikin Smart App's traffic (November 2026) was written up as an OpenAPI spec. Compared with it, the control path used endpoints from an older capture and never sent real device credentials, so control could not work. See the [plan](../plans/align-api-with-openapi.md) and the [comparison](../research/2026-11-26-openapi-conformance.md). Codecov was requested; the `CODECOV_TOKEN` secret is set on the repository.
 
 ## Design
 
-- **Tests read the spec itself** (`test/openapi.test.mjs`), so paths, servers, required parameters, body fields and response examples come from the YAML, not copies of it. If the spec is updated, the tests follow.
-- **Gaps are `todo` tests**, not failing tests and not code changes. They document what the spec expects, run in every build, and pass once the client matches. Fixing the gaps changes login and API calls, which `AGENTS.md` says needs a plan and ideally a real-device check, and the spec itself is unverified. See [the research note](../research/2026-11-26-openapi-conformance.md).
-- A test pins the exact list of cloud calls the plugin makes that the spec doesn't describe, so any new undocumented call fails the build.
-- A test checks the reference file has only placeholder credentials.
-- **Dependency:** `yaml` (dev only, no dependencies of its own) to read the spec. Node has no YAML parser, and converting the spec to JSON would leave two copies to keep in step.
-- **Coverage:** `npm run test:coverage` now also writes `coverage/lcov.info`, mapped back to `src/*.ts` with `--enable-source-maps` so Codecov shows the TypeScript source rather than `dist/`. CI uploads it once, from the Node.js 24 job, with `codecov/codecov-action@v7`. `fail_ci_if_error: false` so a Codecov outage doesn't block a release.
-- Mapped coverage reports type-only `import` lines (erased by TypeScript) as uncovered, so the total shows about 98% rather than the 100% of `dist/`. Accepted rather than adding ignore comments.
-- The test helper's mock now parses form-encoded request bodies too, which the spec's `/oauth2/token` uses.
-- **Flaky test count (already broken before this change):** `npm test` used `--test-force-exit` because the client's token-renewal timer (up to an hour) kept the test process alive. With that flag the runner sometimes exited before the last test file reported, so about 1 run in 4 skipped a file (for example all of `services.test.mjs`) and still exited 0. The timer is now `unref()`ed in `scheduleTokenRefresh`, and `--test-force-exit` is removed. In Homebridge the process is kept alive by its own servers, so renewal behaves the same, and shutdown no longer waits for the timer. `--test-isolation=none` was considered, but Node 22 only has it as an experimental flag under another name.
+- **API calls:** see the plan's table. `userinfo` is called once and saved, and fetched again only after a new code login or a 401/403 on a change. That keeps the extra cloud calls to one per login.
+- **Secrets:** the device credentials are stored in the 0600 token file and never logged. The `userinfo` URL is logged without its `access_token`.
+- **Captured `code` setting:** kept, but it is sent without a verifier, and the spec's PKCE exchange may need one. The README says so.
+- **Tests:** the existing unit tests were updated to the spec's endpoints, bodies and headers. New tests cover `userinfo` (fetched once, saved across restarts, kept across renewals, refetched after a new login or a 401, a missing field fails the change) and check the device password never appears in the log. The mock tells the code exchange and renewal apart by `grant_type`, since they share one URL. An earlier draft added tests that parsed the YAML spec; they were dropped in favour of plain unit tests on the client, along with the `yaml` dev dependency, so no dependency is added.
+- **Flaky test count (already broken before this change):** `--test-force-exit` was needed because the token-renewal timer kept the test process alive. With it, about 1 run in 4 ended before the last file reported and still exited 0. The timer is now `unref()`ed and the flag removed. In Homebridge the process stays alive anyway, so renewal behaves the same.
+- **Coverage:** `npm run test:coverage` writes `coverage/lcov.info`, mapped back to `src/*.ts` with `--enable-source-maps`. CI uploads it once, from the Node.js 24 job, with `codecov/codecov-action@v7` and `fail_ci_if_error: false`. Type-only `import` lines are reported as uncovered once mapped, so the total is about 98%.
 
 ## Files
 
+- `src/client.ts`, `src/types.d.ts`: token endpoint, userinfo, bare token, `TokenResponse` / `UserInfo` types from the spec, timer `unref()`.
+- `test/helpers.mjs`, `test/client.auth.test.mjs`, `test/client.control.test.mjs`, `test/client.local.test.mjs`: spec endpoints in the mock, updated and new tests.
 - `docs/reference/daikin-smart-api.openapi.yaml`: the spec, unchanged.
-- `docs/research/2026-11-26-openapi-conformance.md`: scenario-by-scenario comparison and credential check.
-- `test/openapi.test.mjs`: conformance tests (19 passing, 4 `todo`).
-- `test/helpers.mjs`: form-encoded body parsing in the mock.
-- `src/client.ts`: `unref()` the token-renewal timer.
-- `package.json`, `package-lock.json`: `yaml` dev dependency, `test:coverage` writes lcov, `--test-force-exit` removed.
-- `.github/workflows/build.yml`: Codecov upload step.
-- `README.md`: Codecov badge and "API reference" section.
-- `docs/README.md`: index entries.
+- `docs/plans/align-api-with-openapi.md`, `docs/research/2026-11-26-openapi-conformance.md`, `docs/README.md`.
+- `README.md`, `config.schema.json`: login steps, `clientSecret` source, captured-code caveat, API reference link, Codecov badge.
+- `package.json`: lcov output, `--test-force-exit` removed.
+- `.github/workflows/build.yml`: Codecov upload.
 
 ## Docs updated
 
-`README.md`: a coverage badge, and an "API reference" section linking the spec and the research note. The configuration sections are unchanged. `config.schema.json` is unchanged.
+`README.md` (How login works, `clientSecret`, advanced `code`, API reference, badge), `config.schema.json` (`clientSecret` description), `docs/`.
 
 ## Verified / not verified
 
-- ✅ `npm run lint` and `npm test` pass: 199 tests, 195 pass, 4 `todo`, 0 fail. The same count in 6 runs in a row. Before the fix, 1 of 5 runs reported 150.
-- ✅ `npm run test:coverage` writes `coverage/lcov.info` with `SF:src/...` paths.
-- ✅ Repository and git history searched for tokens, secrets, terminal IDs and passwords: none found.
-- ❌ The Codecov upload and badge were not run here; they need the workflow to run on GitHub with `CODECOV_TOKEN`.
-- ❌ Nothing was checked against a real purifier or Daikin account, so whether the spec's endpoints work as described is unverified.
+- ✅ `npm run lint` and `npm test`: 187 tests pass, the same count on repeated runs.
+- ✅ `npm run test:coverage` writes lcov with `SF:src/...` paths, and `client.ts` is at 100%.
+- ✅ Repository and history searched for credentials: none found.
+- ❌ Not run against a real purifier or Daikin account. Whether the server wants the bare token, accepts the refresh grant on `/oauth2/token`, or needs the terminal registered first is unverified.
+- ❌ The Codecov upload and badge need the workflow to run on GitHub.
 
 ## Follow-ups
 
-- Plan and make the client match the spec: fetch `userinfo` and send `l_user_id` / `l_password` as `id` / `spw`, move the code exchange to `/dsioti/oauth2/token`, and confirm the `authorization` header form. Remove the `todo` markers as each passes.
+- Try on a real account. If `set_control_info` returns 401/403, try the `Bearer` prefix next.
+- Look at the registration endpoints if control still fails, and as a possible source of `terminalId`.

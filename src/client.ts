@@ -4,11 +4,15 @@ import fs from 'fs';
 import path from 'path';
 import type { AccessoryConfig, Characteristic, CharacteristicSetHandler, HAP, Logging } from 'homebridge';
 import { DustLevel, FanSpeed, HumidityLevel, Mode, OdorLevel, PM2Level, PowerStatus } from './constant.js';
-import type { AirPurifier, ControlInfo, LoginResponse, RefreshToken, SensorInfo, UnitStatus } from './types.js';
+import type { AirPurifier, ControlInfo, SensorInfo, TokenResponse, UnitInfoResponse, UnitStatus, UserInfo } from './types.js';
 
+// Endpoints follow docs/reference/daikin-smart-api.openapi.yaml.
 const API_BASE = 'https://api.daikinsmartdb.jp';
+const SET_CONTROL_URL = `${API_BASE}/cleaner/set_control_info`;
 // The Daikin Smart App's login server and the public OAuth client it uses.
 const AUTH_BASE = 'https://prod-dsioti.daikinsmartdb.jp/dsioti/oauth2';
+const TOKEN_URL = `${AUTH_BASE}/token`;
+const USERINFO_URL = `${AUTH_BASE}/userinfo`;
 const DEFAULT_CLIENT_ID = 'i66rposkjbceagakohlncsnus';
 const REDIRECT_URI = 'daikinsmartapp://callback';
 // Wait this long after the last change before sending, so dragging a slider sends one request instead of dozens.
@@ -32,6 +36,9 @@ type StoredTokens = {
   // Install identifiers sent at login, generated once and kept so every login looks like the same app install.
   uuid?: string;
   clientDeviceId?: string;
+  // The device credentials from userinfo (l_user_id, l_password), sent as `id` and `spw` on device calls. Secret.
+  deviceId?: string;
+  devicePassword?: string;
 };
 
 class Client {
@@ -135,8 +142,8 @@ class Client {
     const url = `http://${this.config.host}/cleaner/get_unit_info`;
     try {
       this.log.debug(`[GET] ${url}`);
-      const result = await axios.get<string | Record<string, unknown>>(url, { timeout: 10000 });
-      const info = typeof result.data === 'string' ? this.parseUnitInfo(result.data) : result.data;
+      const result = await axios.get<string | UnitInfoResponse>(url, { timeout: 10000 });
+      const info: UnitInfoResponse = typeof result.data === 'string' ? this.parseUnitInfo(result.data) : result.data;
 
       this.unitInfo = {
         airPurifier: { ...this.unitInfo.airPurifier, ...info?.ctrl_info },
@@ -196,7 +203,7 @@ class Client {
       this.unitInfoFetchedAt = Date.now();
       waiters.forEach(({ resolve }) => resolve());
     } catch (error) {
-      this.log.error(`[GET] ${API_BASE}/cleaner/set_control_info`, (error as Error).message);
+      this.log.error(`[GET] ${SET_CONTROL_URL}`, (error as Error).message);
       // The change didn't happen: put back the previous state so HomeKit doesn't show it, and reload it on the next read.
       if (stateBeforeSet) {
         this.unitInfo.airPurifier = stateBeforeSet;
@@ -214,19 +221,21 @@ class Client {
     }
 
     try {
-      this.log.debug(`[GET] ${API_BASE}/cleaner/set_control_info`, control);
-      const response = await axios.get<string>(`${API_BASE}/cleaner/set_control_info`, {
+      const { id, spw } = await this.ensureDeviceCredentials();
+      this.log.debug(`[GET] ${SET_CONTROL_URL}`, control);
+      const response = await axios.get<string>(SET_CONTROL_URL, {
         timeout: 10000,
-        headers: { Authorization: `Bearer ${this.tokens.accessToken}` },
+        // The spec's rawTokenAuth: the bare access token, with no "Bearer" prefix.
+        headers: { authorization: this.tokens.accessToken },
         params: {
+          id,
+          spw,
+          port: this.config.port,
+          terminalid: this.config.terminalId,
           pow: control.pow,
           mode: control.mode,
           airvol: control.airvol,
           humd: control.humd,
-          id: 'ID',
-          spw: 'SPW',
-          terminalid: this.config.terminalId,
-          port: this.config.port,
         },
       });
       if (response.data !== 'ret=OK') {
@@ -236,13 +245,53 @@ class Client {
       const status = (error as AxiosError).response?.status;
       this.handleRateLimit(status);
       if ((status === 401 || status === 403) && !retried) {
-        // The access token expired early or was revoked: refresh once, then retry.
+        // The access token expired early or was revoked, or the device credentials changed: renew both once, then retry.
         this.tokens.accessToken = undefined;
         this.tokens.expiresAt = 0;
+        this.tokens.deviceId = undefined;
+        this.tokens.devicePassword = undefined;
         return this.sendControlInfo(control, true);
       }
       throw error;
     }
+  }
+
+  /**
+   * Returns the device credentials (`id` and `spw` on device calls), fetching them from userinfo only when they
+   * aren't saved yet. They belong to the account, so they're kept across token renewals and restarts.
+   */
+  private async ensureDeviceCredentials(): Promise<{ id: string; spw: string }> {
+    if (!this.tokens.deviceId || !this.tokens.devicePassword) {
+      // The access token goes in the query string; don't log it.
+      this.log.debug(`[GET] ${USERINFO_URL}`);
+      const { data } = await axios.get<UserInfo>(USERINFO_URL, {
+        timeout: 10000,
+        params: { access_token: this.tokens.accessToken },
+      });
+      if (!data?.l_user_id || !data?.l_password) {
+        throw new Error('The Daikin login server did not return the device credentials (l_user_id, l_password).');
+      }
+      this.tokens.deviceId = data.l_user_id;
+      this.tokens.devicePassword = data.l_password;
+      this.writeTokenFile();
+    }
+    return { id: this.tokens.deviceId, spw: this.tokens.devicePassword };
+  }
+
+  /**
+   * Posts a form-encoded request to the OAuth token endpoint, for both the code exchange and renewals.
+   */
+  private postToken(fields: Record<string, string | undefined>) {
+    const body = new URLSearchParams();
+    Object.entries(fields).forEach(([key, value]) => {
+      if (value !== undefined) {
+        body.append(key, value);
+      }
+    });
+    return axios.post<TokenResponse>(TOKEN_URL, body.toString(), {
+      timeout: 10000,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
   }
 
   /**
@@ -389,17 +438,20 @@ class Client {
 
   private async refreshAccessToken(): Promise<boolean> {
     try {
-      this.log.debug(`[POST] ${API_BASE}/premise/dsiot/token`);
-      const result = await axios.post<RefreshToken>(`${API_BASE}/premise/dsiot/token`, {
+      // The spec notes a refresh_token grant on the token endpoint is likely but wasn't captured.
+      this.log.debug(`[POST] ${TOKEN_URL} (refresh_token)`);
+      const result = await this.postToken({
         grant_type: 'refresh_token',
         refresh_token: this.tokens.refreshToken,
-      }, { timeout: 10000 });
-      this.saveTokens(result.data, this.tokens.code);
+        client_id: this.getClientId(),
+        client_secret: this.config.clientSecret,
+      });
+      this.saveTokens(result.data, this.tokens.code, true);
       return true;
     } catch (error) {
       const status = (error as AxiosError).response?.status;
       this.handleRateLimit(status);
-      this.log.error(`[POST] ${API_BASE}/premise/dsiot/token`, (error as AxiosError)?.message);
+      this.log.error(`[POST] ${TOKEN_URL} (refresh_token)`, (error as AxiosError)?.message);
       if (status === 400 || status === 401) {
         // The refresh token was rejected, so stop using it.
         this.tokens.refreshToken = undefined;
@@ -418,22 +470,24 @@ class Client {
    */
   private async login(code: string, codeVerifier?: string): Promise<boolean> {
     try {
-      this.log.debug(`[POST] ${API_BASE}/premise/dsiot/login`);
-      const result = await axios.post<LoginResponse>(`${API_BASE}/premise/dsiot/login`, {
+      this.log.debug(`[POST] ${TOKEN_URL} (authorization_code)`);
+      const result = await this.postToken({
         grant_type: 'authorization_code',
         code,
+        redirect_uri: REDIRECT_URI,
         client_id: this.getClientId(),
-        uuid: this.getInstallUuid(),
         client_secret: this.config.clientSecret,
-        ...(codeVerifier ? { code_verifier: codeVerifier, redirect_uri: REDIRECT_URI } : {}),
-      }, { timeout: 10000 });
-      this.saveTokens(result.data, codeVerifier ? this.tokens.code : code);
+        // A code captured from the app comes without its verifier.
+        code_verifier: codeVerifier,
+      });
+      // A new login may be for another account, so fetch the device credentials again.
+      this.saveTokens(result.data, codeVerifier ? this.tokens.code : code, false);
       this.log.info('Logged in to the Daikin API. Tokens are saved and renewed automatically.');
       return true;
     } catch (error) {
       const status = (error as AxiosError).response?.status;
       this.handleRateLimit(status);
-      this.log.error(`[POST] ${API_BASE}/premise/dsiot/login`, (error as AxiosError)?.message);
+      this.log.error(`[POST] ${TOKEN_URL} (authorization_code)`, (error as AxiosError)?.message);
       if (!codeVerifier && status && status >= 400 && status < 500 && status !== 429) {
         // This code has been used or has expired. Record it so it isn't sent again on every request.
         this.tokens.code = code;
@@ -449,7 +503,7 @@ class Client {
     }
   }
 
-  private saveTokens(data: RefreshToken | LoginResponse, code: string | undefined) {
+  private saveTokens(data: TokenResponse, code: string | undefined, keepDeviceCredentials: boolean) {
     const lifetime = (data.expires_in || DEFAULT_TOKEN_LIFETIME_S) * 1000;
     this.authFailureLogged = false;
     this.tokens = {
@@ -460,6 +514,7 @@ class Client {
       refreshToken: data.refresh_token || this.tokens.refreshToken,
       expiresAt: Date.now() + lifetime,
       code,
+      ...(keepDeviceCredentials ? { deviceId: this.tokens.deviceId, devicePassword: this.tokens.devicePassword } : {}),
     };
     this.writeTokenFile();
     this.scheduleTokenRefresh(lifetime - TOKEN_REFRESH_MARGIN_MS);

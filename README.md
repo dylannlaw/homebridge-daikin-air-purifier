@@ -55,7 +55,7 @@ With control:
 | `host` | The purifier's local IP address. Give it a fixed IP in your router so it doesn't change. |
 | `cacheDuration` | How often, in seconds, the purifier is polled (minimum 15). |
 | `username`, `password` | The email and password you sign in to the [Daikin Smart App](https://apps.apple.com/app/id564109247) with. |
-| `clientSecret` | The `client_secret` from the app's `https://api.daikinsmartdb.jp/premise/dsiot/login` request body. |
+| `clientSecret` | The `client_secret` from the app's `https://prod-dsioti.daikinsmartdb.jp/dsioti/oauth2/token` request body. |
 | `terminalId` | The `terminalid` query parameter of the app's `https://api.daikinsmartdb.jp/cleaner/set_control_info` request, sent when you change a setting in the app. |
 | `port` | Usually `30050`. It's also shown as `port=` at `http://<purifier IP>/common/basic_info`. |
 
@@ -65,19 +65,20 @@ With control:
 The plugin logs in like the Daikin Smart App:
 1. It starts a login session at `https://prod-dsioti.daikinsmartdb.jp/dsioti/oauth2/authorize` (OAuth with PKCE).
 2. It sends your email and password to `https://prod-dsioti.daikinsmartdb.jp/dsioti/oauth2/auth`, which returns an authorization code.
-3. It exchanges the code for tokens at `https://api.daikinsmartdb.jp/premise/dsiot/login`.
+3. It exchanges the code for tokens at `https://prod-dsioti.daikinsmartdb.jp/dsioti/oauth2/token`.
+4. When it first changes a setting, it gets the account's device credentials from `https://prod-dsioti.daikinsmartdb.jp/dsioti/oauth2/userinfo` and saves them. They're sent with every change to `https://api.daikinsmartdb.jp/cleaner/set_control_info`.
 
-Tokens are saved to `<homebridge storage>/daikin-air-purifier-<name>.json` (readable only by the Homebridge user) and renewed automatically. If they expire, the plugin logs in again with your email and password. If the email or password is rejected, it stops retrying until Homebridge restarts, so your account isn't locked.
+Tokens and device credentials are saved to `<homebridge storage>/daikin-air-purifier-<name>.json` (readable only by the Homebridge user), and tokens are renewed automatically at the same token endpoint. If they expire, the plugin logs in again with your email and password. If the email or password is rejected, it stops retrying until Homebridge restarts, so your account isn't locked.
 
 ### Advanced settings
 Leave these empty unless you need them:
 - `clientId`: defaults to the Daikin Smart App's client ID.
 - `uuid`: an app install ID. The plugin generates and keeps one.
-- `code`: a single-use authorization code captured from the app, instead of email and password.
+- `code`: a single-use authorization code captured from the app, instead of email and password. The current app protects its codes with PKCE, so a captured code may not work without the app's code verifier.
 - `refreshToken`: a `refresh_token` captured from the app, instead of email and password.
 
 ### API reference
-An unofficial OpenAPI description of the Daikin Smart API, reverse-engineered from the app's traffic, is in [`docs/reference/daikin-smart-api.openapi.yaml`](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/docs/reference/daikin-smart-api.openapi.yaml). [This note](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/docs/research/2026-11-26-openapi-conformance.md) lists where the plugin differs from it, which is likely why control doesn't work yet.
+An unofficial OpenAPI description of the Daikin Smart API, reverse-engineered from the app's traffic, is in [`docs/reference/daikin-smart-api.openapi.yaml`](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/docs/reference/daikin-smart-api.openapi.yaml). [This note](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/docs/research/2026-11-26-openapi-conformance.md) explains how each of the plugin's API calls follows it, and what is still unverified.
 
 ### How API calls are kept low
 - Status is read from the purifier on your local network once per `cacheDuration`, and that one result is shared by every HomeKit request.

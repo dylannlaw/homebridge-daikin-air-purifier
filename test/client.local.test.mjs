@@ -1,7 +1,7 @@
 import { describe, test, afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  API, HOST, LOCAL_CONFIG, PASSWORD_CONFIG, hap, makeClient, mockServers, rejection, settle, tempStorage, writeTokens,
+  HOST, LOCAL_CONFIG, LOGIN, PASSWORD_CONFIG, hap, makeClient, mockServers, rejection, settle, tempStorage, writeTokens,
 } from './helpers.mjs';
 
 const UNIT = `${HOST}/cleaner/get_unit_info`;
@@ -185,7 +185,7 @@ describe('choosing local-only mode or control', () => {
     const server = mockServers();
     makeClient(PASSWORD_CONFIG);
     await settle();
-    assert.equal(server.count(`${API}/premise/dsiot/login`), 1);
+    assert.equal(server.count(LOGIN), 1);
   });
 });
 

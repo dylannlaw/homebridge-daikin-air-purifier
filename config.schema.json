@@ -39,7 +39,7 @@
       "clientSecret": {
         "title": "Client Secret",
         "type": "string",
-        "description": "Needed to control the purifier. Captured once from the Daikin Smart App's https://api.daikinsmartdb.jp/premise/dsiot/login request body."
+        "description": "Needed to control the purifier. Captured once from the Daikin Smart App's https://prod-dsioti.daikinsmartdb.jp/dsioti/oauth2/token request body."
       },
       "terminalId": {
         "title": "Terminal ID",
