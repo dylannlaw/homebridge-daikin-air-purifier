@@ -10,10 +10,11 @@ The old README started with a feature table and the details of each mode, which 
 
 ## Design
 
-- **Before you start** lists what's needed and lets the user pick cloud mode or local mode before installing, with an early warning that control may not work on the current app.
+- **Before you start** lists what's needed and lets the user pick cloud mode or local mode before installing.
 - **Get started** is five numbered steps, ending with what the log says when control is off.
-- **Limitations** brings together the points that were spread across the old README: control on newer app versions, no local control on newer firmware, cloud status not yet confirmed end to end. It adds one new point: only the MCK70W on firmware 3.17.0-g4 has been tested (the firmware the maintainer runs it on), which is also stated in the header and in Before you start.
+- **Limitations** brings together the points that were spread across the old README: no local control on newer firmware, cloud status not yet confirmed end to end. It adds one new point: only the MCK70W on firmware 3.17.0-g4 has been tested (the firmware the maintainer runs it on), which is also stated in the header and in Before you start.
 - **Finding the IP address:** Get started now tells users to read the purifier's local IP from the **Model information** section of the Daikin Smart App, the same place that shows the firmware version, before reserving it in the router.
+- **Control works on 3.17.0-g4:** the old warning that control doesn't work on newer firmware is removed, because the maintainer has it working on firmware 3.17.0-g4. The guide to capturing `clientSecret` and `terminalId` is still linked from the configuration steps.
 - **Good to know** keeps the rate-limit guidance, and adds a short note on where credentials are kept and where status comes from.
 - All links into `docs/` stay as full GitHub URLs, because `docs/` isn't published to npm.
 - There are no screenshots, because the repo has none yet.

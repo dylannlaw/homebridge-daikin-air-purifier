@@ -75,8 +75,6 @@ You need:
 | Sensors, status **and control** from HomeKit | **Cloud mode** | Your Daikin Smart App email and password, plus a `clientSecret` and `terminalId` captured once from the app |
 | Sensors and status only (read-only) | **Local mode** | The purifier's local IP address, shown in the Daikin Smart App under **Model information** |
 
-> ⚠️ **Control may not work for you yet.** The values cloud mode needs can't currently be captured from the newest Daikin Smart App. Read [Limitations](#limitations) before you start, so you know what to expect.
-
 ## Get started
 
 1. **Install the plugin.** In the Homebridge UI, open **Plugins**, search for **Homebridge Daikin Air Purifier** and click **Install**. Or, from the command line:
@@ -147,7 +145,6 @@ Advanced settings (`clientId`, `uuid`, `code`, `refreshToken`) are described in 
 
 ## Limitations
 
-- **Control currently doesn't work on newer app versions.** Since the Daikin Smart App was updated, the `clientSecret` and `terminalId` that control needs can no longer be captured with an HTTPS proxy: the app rejects intercepted connections (for example with error `0406`). Without a `clientSecret`, status is read from the local IP only; without a `terminalId`, the purifier can't be controlled from HomeKit. [Capturing credentials with mitmproxy](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/docs/guides/capturing-credentials.md) describes the approach still worth trying (WireGuard mode), which hasn't been confirmed to work. Follow [#2](https://github.com/dylannlaw/homebridge-daikin-air-purifier/issues/2) for updates. If you already have both values from an older capture, control may still work with them.
 - **No local control.** Newer purifier firmware (for example `3_15_0`) has removed local control, so control always goes through the Daikin cloud, the same way the Daikin Smart App does. Local mode is read-only.
 - **Cloud status and control are new** and not yet confirmed working end to end. The login follows the Daikin Smart App's current login. If it fails, the log says why, and status falls back to the local IP if it's set.
 - **One model and firmware tested.** Only the MCK70W on firmware 3.17.0-g4 has been tested. Other firmware versions and other Daikin purifiers that use the Daikin Smart App may work, but aren't confirmed.
