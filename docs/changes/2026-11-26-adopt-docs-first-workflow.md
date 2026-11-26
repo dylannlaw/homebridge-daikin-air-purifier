@@ -24,7 +24,7 @@ Files were taken from the pack's `templates/` and filled in for this repository.
 
 - `AGENTS.md`, `CLAUDE.md`, `standard.json`, `SECURITY.md`: the working agreement and its settings.
 - `docs/`: index, workflow, plan and change-note templates, and this note.
-- `.github/pull_request_template.md`, `CODEOWNERS`, `dependabot.yml`, `workflows/standard.yml`: PR checklist, review owner, updates and the drift check.
+- `.github/pull_request_template.md`, `CODEOWNERS`, `dependabot.yml`: PR checklist, review owner and dependency updates.
 - `.npmignore`: keeps the new files out of the package.
 
 ## Docs updated
@@ -34,10 +34,9 @@ Files were taken from the pack's `templates/` and filled in for this repository.
 ## Verified / not verified
 
 - ✅ Ran the pack's `check-standard.mjs` on this repository : 0 failing, 0 warnings, 18 checks. `npm run lint` and `npm test` also pass (157 tests).
-- ❌ The new `Standard` CI job calls the reusable workflow `@v1` and hasn't run on GitHub yet.
 - ❌ Branch protection and the `@dylannlaw` CODEOWNERS review rule are GitHub settings, not checked here.
 
 ## Follow-ups
 
-- Turn off `warn-only` if the Standard job needs it; the template starts strict.
+- No CI drift check: the pack's `Standard` job was left out because it calls a reusable workflow in `dylannlaw/agent-skills`, which may be private, and a public repository can't depend on that. Run the pack's `check-standard.mjs` by hand if needed, or vendor it later.
 - Backfill plans or notes for the login and cloud-control decisions if they come up again.
