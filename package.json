@@ -23,6 +23,7 @@
     "build": "rimraf ./dist && tsc",
     "test": "npm run build && node --test --test-force-exit 'test/*.test.mjs'",
     "test:coverage": "npm run build && node --test --test-force-exit --experimental-test-coverage --test-coverage-include='dist/**' 'test/*.test.mjs'",
+    "homebridge:local": "bash scripts/local-homebridge.sh",
     "prepublishOnly": "npm run lint && npm test"
   },
   "keywords": [

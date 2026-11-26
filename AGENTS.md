@@ -32,7 +32,7 @@ npm run lint && npm test
 ```
 
 - **Logic:** tests are in `test/*.test.mjs` and run against the built `dist/` with `node --test`. They must not call the real Daikin API or need a purifier.
-- **Real device:** control can only be confirmed against a real purifier and Daikin account. If you can't, say so in the change note.
+- **Real device:** control can only be confirmed against a real purifier and Daikin account. `npm run homebridge:local` runs the packed plugin in a private test Homebridge you can pair with an iPhone (see the README). If you can't test on a device, say so in the change note.
 - Write down anything you could not check in the change note. Never claim a thing was verified if it wasn't.
 
 ## 5. Update the docs in the same change

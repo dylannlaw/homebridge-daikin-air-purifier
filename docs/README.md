@@ -12,6 +12,7 @@ Living files, written before a larger change is built.
 
 One per non-trivial change, newest first.
 
+- [2026-11-26 Script to test the plugin in a local Homebridge](changes/2026-11-26-local-homebridge-script.md)
 - [2026-11-26 Release to npm on every commit to master](changes/2026-11-26-release-on-every-commit.md)
 - [2026-11-26 Adopt the docs-first workflow](changes/2026-11-26-adopt-docs-first-workflow.md)
 

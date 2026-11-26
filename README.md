@@ -91,6 +91,26 @@ Leave these empty unless you need them:
 - If the API responds with HTTP 429, the plugin stops calling it for 5 minutes.
 
 
+## Testing a development build on your iPhone
+
+To try changes to this plugin before they are released, run it in a private test Homebridge on your computer (macOS or Linux, Node.js 22.12 or later) and pair that with the Home app:
+
+```sh
+git clone https://github.com/dylannlaw/homebridge-daikin-air-purifier.git
+cd homebridge-daikin-air-purifier
+npm run homebridge:local
+```
+
+The script builds the plugin, packs it the way npm would publish it, and installs it with Homebridge and the Homebridge web UI into `.homebridge-local/` in the repository. It doesn't touch `~/.homebridge` or a Homebridge you already run. On the first run it asks for the purifier's IP and creates a separate test bridge with its own setup code.
+
+1. Open the web UI at `http://localhost:8581` and create a login (it only exists in this test setup).
+2. Go to **Plugins → Homebridge Daikin Air Purifier → Settings**, fill in your settings, save and press **Restart**.
+3. On your iPhone, on the same Wi-Fi, open the Home app, tap **+ → Add Accessory** and scan the QR code on the web UI's Status page, or enter the setup code the script prints.
+
+After changing the code, press Ctrl+C and run the script again; your settings and pairing are kept. `npm run homebridge:local -- reset` forgets the pairing (remove the bridge from the Home app first), and `npm run homebridge:local -- clean` deletes the whole test setup.
+
+If you already run Homebridge, give the test bridge a different port or stop the other one: `HB_UI_PORT=8582 HB_BRIDGE_PORT=51828 npm run homebridge:local` on the first run.
+
 ## Changelog
 
 Every change to the plugin is released to npm automatically as soon as it is merged. See [Releases](https://github.com/dylannlaw/homebridge-daikin-air-purifier/releases) for what changed in each version, and the [CHANGELOG](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/CHANGELOG.md) for versions up to 0.2.0.
