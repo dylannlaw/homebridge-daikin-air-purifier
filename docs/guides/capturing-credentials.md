@@ -72,8 +72,10 @@ If `http://mitm.it` says "traffic is not going through mitmproxy", you're seeing
 Now stop mitmweb (Ctrl+C) and start it again so it only decrypts Daikin's hosts. This keeps your other apps' traffic out of the capture:
 
 ```sh
-mitmweb --mode wireguard --allow-hosts 'daikinsmartdb\.jp$'
+mitmweb --mode wireguard --allow-hosts 'daikinsmartdb\.jp'
 ```
+
+Don't end the pattern with `$`: mitmproxy matches it against `host:port` (for example `api.daikinsmartdb.jp:443`), so `daikinsmartdb\.jp$` never matches and nothing is decrypted. You'd see only DNS lookups (shown as `QUERY`) for Daikin's hosts.
 
 mitmproxy keeps its WireGuard keys (in `~/.mitmproxy`), so the tunnel on the phone keeps working; turn it off and on again if it doesn't reconnect. Other traffic still passes through the tunnel, but isn't decrypted or shown.
 
