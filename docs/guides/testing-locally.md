@@ -41,7 +41,7 @@ Leave the terminal open: Homebridge runs until you press Ctrl+C, and its log is 
 2. Create a login when asked. It only exists in this test setup.
 3. Go to **Plugins**, find **Homebridge Daikin Air Purifier** and open its settings from the menu on its card.
 4. Enter the purifier's IP, and for control your Daikin email, password, Client Secret, Terminal ID and Port. Click **Save**.
-5. Click **Restart** (top right). Watch the log in the terminal or under **Logs** in the web UI; it says whether the purifier was reached and whether control is enabled.
+5. Click **Restart** (top right). Watch the log in the terminal or under **Logs** in the web UI; it says whether the purifier was reached and whether control is enabled. The test Homebridge always runs in debug mode, so the plugin's debug lines (each status read, cloud call and command) are shown too. The script turns debug mode back on every time it starts, even if you switch it off in the web UI.
 
 ## Step 4: Add it to the Home app
 

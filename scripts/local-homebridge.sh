@@ -8,7 +8,8 @@
 #
 # Everything lives in .homebridge-local/ in the repository (ignored by git and npm). It never touches
 # ~/.homebridge or a Homebridge you already run. The plugin is installed from an `npm pack` tarball,
-# so you test exactly what would be published.
+# so you test exactly what would be published. Homebridge always runs in debug mode (-D), so the
+# plugin's debug logs are shown.
 #
 # Settings (environment variables, all optional):
 #   DAIKIN_HOST     the purifier's local IP; skips the question on first run
@@ -34,7 +35,7 @@ warn() { printf '\033[1;33m!!\033[0m %s\n' "$*" >&2; }
 die() { printf '\033[1;31mxx\033[0m %s\n' "$*" >&2; exit 1; }
 
 usage() {
-  sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 check_node() {
@@ -140,6 +141,20 @@ write_config() {
   '
 }
 
+# Always run Homebridge with -D, so the plugin's debug lines show in the terminal and the web UI log.
+# hb-service has no flag for it: it reads the startup options the web UI's "Homebridge Debug Mode"
+# toggle saves, on every (re)start. Turn it back on each run and keep any other options set there.
+enable_debug_mode() {
+  STARTUP="$STORAGE/.uix-hb-service-homebridge-startup.json" node -e '
+    const fs = require("fs");
+    const file = process.env.STARTUP;
+    let options = {};
+    try { options = JSON.parse(fs.readFileSync(file, "utf8")); } catch {}
+    options.debugMode = true;
+    fs.writeFileSync(file, JSON.stringify(options, null, 4) + "\n");
+  '
+}
+
 print_instructions() {
   local pin ip
   pin="$(CONFIG="$CONFIG" node -e 'console.log(require(process.env.CONFIG).bridge.pin)')"
@@ -190,6 +205,7 @@ cmd_start() {
   check_node
   build_and_install
   write_config
+  enable_debug_mode
   print_instructions
   run_homebridge
 }
