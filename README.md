@@ -1,19 +1,21 @@
 
-# Homebridge Daikin Air Purifier
+<h1 align="center">Homebridge Daikin Air Purifier</h1>
 
-<p>
+<p align="center">
+This is a Homebridge plugin built for Daikin Air Purifier (based on MCK70W model). 
+</p>
+
+<p align="center">
   <a href="https://www.npmjs.com/package/@dylannlaw/homebridge-daikin-air-purifier"><img src="https://img.shields.io/npm/v/@dylannlaw/homebridge-daikin-air-purifier?color=666666&labelColor=444444" alt="Latest version on npm"></a>
   <a href="https://www.npmjs.com/package/@dylannlaw/homebridge-daikin-air-purifier"><img src="https://img.shields.io/npm/d18m/@dylannlaw/homebridge-daikin-air-purifier?color=666666&labelColor=444444" alt="Downloads in the last 18 months"></a>
   <a href="https://www.npmjs.com/package/@dylannlaw/homebridge-daikin-air-purifier"><img src="https://img.shields.io/npm/dm/@dylannlaw/homebridge-daikin-air-purifier?color=666666&labelColor=444444" alt="Downloads per month"></a>
+</p>
+
+<p align="center">
   <a href="https://github.com/dylannlaw/homebridge-daikin-air-purifier/actions/workflows/tests.yml"><img src="https://github.com/dylannlaw/homebridge-daikin-air-purifier/actions/workflows/tests.yml/badge.svg?branch=master" alt="Tests on the master branch"></a>
   <a href="https://codecov.io/gh/dylannlaw/homebridge-daikin-air-purifier"><img src="https://img.shields.io/codecov/c/github/dylannlaw/homebridge-daikin-air-purifier/master?color=666666&labelColor=444444" alt="Test coverage on the master branch"></a>
   <a href="https://github.com/dylannlaw/homebridge-daikin-air-purifier"><img src="https://img.shields.io/github/stars/dylannlaw/homebridge-daikin-air-purifier?style=social" alt="Stars"></a>
-  <img src="https://img.shields.io/badge/homebridge-1.8%2B%20%7C%202.x-666666?labelColor=444444" alt="Homebridge 1.8+ or 2.x">
-  <img src="https://img.shields.io/node/v/@dylannlaw/homebridge-daikin-air-purifier?color=666666&labelColor=444444" alt="Supported Node.js versions">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-666666?labelColor=444444" alt="Apache 2.0 license"></a>
 </p>
-
-This is a Homebridge plugin built for Daikin Air Purifier (based on MCK70W model). 
 
 ## What works
 
