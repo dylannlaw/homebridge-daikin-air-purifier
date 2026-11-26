@@ -138,7 +138,6 @@ web_modules/
 
 # Project workflow files, not part of the published package
 docs
-.claude
 AGENTS.md
 CLAUDE.md
 SECURITY.md
