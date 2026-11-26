@@ -26,9 +26,12 @@ class Humidifier {
       this.setTargetHumidifierDehumidifierState.bind(this),
     );
 
+    // Read-only in HomeKit: the tank level. Strength is set with RotationSpeed below.
+    this.humidifier.getCharacteristic(api.hap.Characteristic.WaterLevel).onGet(this.getWaterLevel.bind(this));
+
     client.bindSet(
-      this.humidifier.getCharacteristic(api.hap.Characteristic.WaterLevel).onGet(this.getWaterLevel.bind(this)),
-      this.setWaterLevel.bind(this),
+      this.humidifier.getCharacteristic(api.hap.Characteristic.RotationSpeed).onGet(this.getRotationSpeed.bind(this)),
+      this.setRotationSpeed.bind(this),
     );
 
     log.info('Initialize Humidifier');
@@ -48,7 +51,8 @@ class Humidifier {
     await this.client.setControlInfo({
       mode: airPurifier.mode,
       airvol: airPurifier.airvol,
-      pow: airPurifier.pow,
+      // Humidifying needs the purifier on; turning humidifying off leaves the power as it is.
+      pow: active === this.api.hap.Characteristic.Active.ACTIVE ? PowerStatus.On : airPurifier.pow,
       humd: active === this.api.hap.Characteristic.Active.ACTIVE ? HumidityLevel.Standard : HumidityLevel.Off,
     });
   }
@@ -104,18 +108,40 @@ class Humidifier {
     return Number(unitStatus.water_supply);
   }
 
-  async setWaterLevel(level) {
-    let speed = HumidityLevel.Off;
-    if (level >= 98) {
-      speed = HumidityLevel.VeryHigh;
-    } else if (level >= 60) {
-      speed = HumidityLevel.High;
-    } else if (level >= 35) {
-      speed = HumidityLevel.Standard;
-    } else if (level >= 15) {
-      speed = HumidityLevel.Low;
+  /** Humidifying strength as a slider: Low 33%, Standard 66%, High 100%. VeryHigh (Smart mode) also shows 100%. */
+  async getRotationSpeed() {
+    const { airPurifier } = await this.client.getUnitInfo();
+    switch (airPurifier.humd) {
+      case HumidityLevel.Low:
+        return 33;
+      case HumidityLevel.Standard:
+        return 66;
+      case HumidityLevel.High:
+      case HumidityLevel.VeryHigh:
+        return 100;
+      default:
+        return 0;
     }
-    await this.client.setControlInfo({ humd: speed });
+  }
+
+  /** 0% turns humidifying off; 1–33% is Low, 34–66% Standard, 67–100% High. */
+  async setRotationSpeed(value) {
+    const { airPurifier } = await this.client.getUnitInfo();
+    const level = Number(value);
+    let humd = HumidityLevel.High;
+    if (level <= 0) {
+      humd = HumidityLevel.Off;
+    } else if (level <= 33) {
+      humd = HumidityLevel.Low;
+    } else if (level <= 66) {
+      humd = HumidityLevel.Standard;
+    }
+    await this.client.setControlInfo({
+      mode: airPurifier.mode,
+      airvol: airPurifier.airvol,
+      pow: humd === HumidityLevel.Off ? airPurifier.pow : PowerStatus.On,
+      humd,
+    });
   }
 
   getService() {
@@ -125,6 +151,7 @@ class Humidifier {
   async identify() {
     const active = await this.getActive();
     const waterLevel = await this.getWaterLevel();
+    const strength = await this.getRotationSpeed();
     const currentState = await this.getCurrentHumidifierDehumidifierState();
     const targetState = await this.getTargetHumidifierDehumidifierState();
 
@@ -132,6 +159,7 @@ class Humidifier {
     this.humidifier.getCharacteristic(this.api.hap.Characteristic.CurrentHumidifierDehumidifierState).updateValue(currentState);
     this.humidifier.getCharacteristic(this.api.hap.Characteristic.TargetHumidifierDehumidifierState).updateValue(targetState);
     this.humidifier.getCharacteristic(this.api.hap.Characteristic.WaterLevel).updateValue(waterLevel);
+    this.humidifier.getCharacteristic(this.api.hap.Characteristic.RotationSpeed).updateValue(strength);
   }
 
 }

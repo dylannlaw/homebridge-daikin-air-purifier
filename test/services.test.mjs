@@ -134,10 +134,17 @@ describe('Humidifier tile', () => {
     assert.deepEqual(lastSet(client), { mode: '3', airvol: '2', pow: '1', humd: '2' });
   });
 
-  test('turning humidifying off sets humidity off', async () => {
-    const { client, service } = make(Humidifier);
+  test('turning humidifying on also turns the purifier on', async () => {
+    const { client, service } = make(Humidifier, { airPurifier: { pow: '0', mode: '1', airvol: '0', humd: '0' } });
+    await service.setActive(C.Active.ACTIVE);
+    assert.deepEqual(lastSet(client), { mode: '1', airvol: '0', pow: '1', humd: '2' });
+  });
+
+  test('turning humidifying off sets humidity off and leaves the power', async () => {
+    const { client, service } = make(Humidifier, { airPurifier: { pow: '1' } });
     await service.setActive(C.Active.INACTIVE);
     assert.equal(lastSet(client).humd, '0');
+    assert.equal(lastSet(client).pow, '1');
   });
 
   for (const [status, expected] of [
@@ -185,13 +192,37 @@ describe('Humidifier tile', () => {
     assert.equal(await service.getWaterLevel(), 1);
   });
 
-  for (const [level, humd] of [[100, '4'], [98, '4'], [97, '3'], [60, '3'], [59, '2'], [35, '2'], [34, '1'], [15, '1'], [14, '0'], [0, '0']]) {
-    test(`moving the water level slider to ${level} sets humidity ${humd}`, async () => {
-      const { client, service } = make(Humidifier);
-      await service.setWaterLevel(level);
-      assert.deepEqual(lastSet(client), { humd });
+  test('water level is read-only and has no set handler', () => {
+    const waterLevel = make(Humidifier).service.getService().getCharacteristic(C.WaterLevel);
+    assert.equal(waterLevel.setHandler, undefined);
+    assert.equal(make(Humidifier).service.setWaterLevel, undefined);
+  });
+
+  for (const [level, humd] of [[100, '3'], [67, '3'], [66, '2'], [34, '2'], [33, '1'], [1, '1']]) {
+    test(`moving the strength slider to ${level}% sets humidity ${humd}, turning the power on`, async () => {
+      const { client, service } = make(Humidifier, { airPurifier: { pow: '0', mode: '2', airvol: '1', humd: '0' } });
+      await service.setRotationSpeed(level);
+      assert.deepEqual(lastSet(client), { mode: '2', airvol: '1', pow: '1', humd });
     });
   }
+
+  test('moving the strength slider to 0% turns humidifying off and leaves the power', async () => {
+    const { client, service } = make(Humidifier, { airPurifier: { pow: '1', mode: '0', airvol: '3', humd: '2' } });
+    await service.setRotationSpeed(0);
+    assert.deepEqual(lastSet(client), { mode: '0', airvol: '3', pow: '1', humd: '0' });
+  });
+
+  for (const [humd, expected] of [['0', 0], ['1', 33], ['2', 66], ['3', 100], ['4', 100]]) {
+    test(`humidity ${humd} shows the strength slider at ${expected}%`, async () => {
+      assert.equal(await make(Humidifier, { airPurifier: { humd } }).service.getRotationSpeed(), expected);
+    });
+  }
+
+  test('the strength slider calls the set handler', async () => {
+    const { client, service } = make(Humidifier);
+    await service.getService().getCharacteristic(C.RotationSpeed).handleSetRequest(50);
+    assert.equal(lastSet(client).humd, '2');
+  });
 
   test('identify pushes all current values to HomeKit', async () => {
     const { service } = make(Humidifier, { airPurifier: { pow: '1', humd: '2' }, unitStatus: { water_supply: '1' } });
@@ -201,6 +232,7 @@ describe('Humidifier tile', () => {
     assert.equal(s.getCharacteristic(C.CurrentHumidifierDehumidifierState).value, C.CurrentHumidifierDehumidifierState.HUMIDIFYING);
     assert.equal(s.getCharacteristic(C.TargetHumidifierDehumidifierState).value, C.TargetHumidifierDehumidifierState.HUMIDIFIER);
     assert.equal(s.getCharacteristic(C.WaterLevel).value, 1);
+    assert.equal(s.getCharacteristic(C.RotationSpeed).value, 66);
   });
 });
 
@@ -296,7 +328,7 @@ describe('local-only mode in the tiles', () => {
     const controls = [
       purifier.getCharacteristic(C.Active), purifier.getCharacteristic(C.TargetAirPurifierState), purifier.getCharacteristic(C.RotationSpeed),
       humidifier.getCharacteristic(C.Active), humidifier.getCharacteristic(C.TargetHumidifierDehumidifierState),
-      humidifier.getCharacteristic(C.WaterLevel),
+      humidifier.getCharacteristic(C.RotationSpeed),
     ];
     for (const c of controls) {
       assert.deepEqual(c.props.perms, [hap.Perms.PAIRED_READ, hap.Perms.NOTIFY], c.displayName);

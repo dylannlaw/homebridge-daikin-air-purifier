@@ -14,12 +14,14 @@ For users, linked from the main README.
 
 Living files, written before a larger change is built.
 
+- [Set the humidifier's strength (Low, Standard, High)](plans/humidifier-strength.md) (implemented)
 - [Make the cloud API calls follow the OpenAPI reference](plans/align-api-with-openapi.md) (implemented)
 
 ## Change notes
 
 One per non-trivial change, newest first.
 
+- [2026-11-26 Set the humidifier's strength from HomeKit](changes/2026-11-26-humidifier-strength.md)
 - [2026-11-26 Redesign the README as a step-by-step guide](changes/2026-11-26-readme-redesign.md)
 - [2026-11-26 Describe the settings as cloud mode and local mode](changes/2026-11-26-cloud-and-local-modes.md)
 - [2026-11-26 Guide to capturing credentials with mitmproxy](changes/2026-11-26-mitmproxy-capture-guide.md)

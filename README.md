@@ -47,7 +47,7 @@
     </td>
     <td width="50%" valign="top">
       <h3>💧 Humidifier control</h3>
-      The humidifier gets its own tile next to the purifier, so you can turn humidifying on or off with a tap. Needs <a href="#cloud-mode-status-and-control">cloud mode</a>.
+      The humidifier gets its own tile next to the purifier, to turn humidifying on or off and set its strength (Low, Standard or High). Needs <a href="#cloud-mode-status-and-control">cloud mode</a>.
     </td>
   </tr>
   <tr>
@@ -140,7 +140,7 @@ Advanced settings (`clientId`, `uuid`, `code`, `refreshToken`) are described in 
 ## Using it in the Home app
 
 - **The purifier tile** turns the purifier on or off. Open it to set the fan speed and switch between Auto and Manual.
-- **The humidifier** has its own tile, shown with the purifier, to turn humidifying on or off (cloud mode).
+- **The humidifier** has its own tile, shown with the purifier, to turn humidifying on or off and set its strength with a slider: up to 33% is Low, up to 66% Standard, and above that High (cloud mode). 0% turns humidifying off.
 - **Sensors** for temperature, humidity and air quality appear alongside it and can trigger automations.
 
 ## Limitations
