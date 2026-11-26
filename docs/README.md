@@ -14,12 +14,14 @@ For users, linked from the main README.
 
 Living files, written before a larger change is built.
 
+- [Switches for the purifier's Eco, Pollen and Circulator modes](plans/mode-switches.md) (implemented)
 - [Make the cloud API calls follow the OpenAPI reference](plans/align-api-with-openapi.md) (implemented)
 
 ## Change notes
 
 One per non-trivial change, newest first.
 
+- [2026-11-26 Switches for the purifier's Eco, Pollen and Circulator modes](changes/2026-11-26-mode-switches.md)
 - [2026-11-26 Describe the settings as cloud mode and local mode](changes/2026-11-26-cloud-and-local-modes.md)
 - [2026-11-26 Guide to capturing credentials with mitmproxy](changes/2026-11-26-mitmproxy-capture-guide.md)
 - [2026-11-26 Follow the OpenAPI reference for API calls, and read status from the cloud](changes/2026-11-26-openapi-conformance-and-coverage.md)
