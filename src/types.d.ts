@@ -54,3 +54,6 @@ export type UnitInfoResponse = {
   sensor_info?: Partial<SensorInfo>;
   unit_status?: Partial<UnitStatus>;
 };
+
+/** A Daikin mode that can have its own switch in HomeKit (the `modeSwitches` setting). */
+export type ModeSwitchName = 'eco' | 'pollen' | 'circulator';

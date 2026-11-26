@@ -13,6 +13,7 @@ import Humidifier from './Service/Humidifier.js';
 import AirQualitySensor from './Service/AirQualitySensor.js';
 import HumiditySensor from './Service/HumiditySensor.js';
 import TemperatureSensor from './Service/TemperatureSensor.js';
+import ModeSwitch from './Service/ModeSwitch.js';
 import Client from './client.js';
 
 let hap: HAP;
@@ -35,6 +36,7 @@ class DaikinAirPurifier implements AccessoryPlugin {
   private airQualitySensor: AirQualitySensor;
   private humiditySensor: HumiditySensor;
   private temperatureSensor: TemperatureSensor;
+  private modeSwitch: ModeSwitch;
 
   constructor(log: Logging, config: AccessoryConfig, api: API) {
     this.log = log;
@@ -47,6 +49,7 @@ class DaikinAirPurifier implements AccessoryPlugin {
     this.airQualitySensor = new AirQualitySensor(this.client, hap, log, config, api);
     this.humiditySensor = new HumiditySensor(this.client, hap, log, config, api);
     this.temperatureSensor = new TemperatureSensor(this.client, hap, log, config, api);
+    this.modeSwitch = new ModeSwitch(this.client, hap, log, config, api, this.airPurifier.getService());
 
     log.info('Daikin Air Purifier is initialized.');
     this.refresh();
@@ -66,6 +69,7 @@ class DaikinAirPurifier implements AccessoryPlugin {
       await this.airQualitySensor.identify();
       await this.humiditySensor.identify();
       await this.temperatureSensor.identify();
+      await this.modeSwitch.identify();
     } catch (error) {
       this.log.error('Unable to refresh Daikin Air Purifier state:', (error as Error).message);
     }
@@ -81,6 +85,7 @@ class DaikinAirPurifier implements AccessoryPlugin {
       this.airQualitySensor.getService(),
       this.humiditySensor.getService(),
       this.temperatureSensor.getService(),
+      ...this.modeSwitch.getServices(),
     ];
   }
 
