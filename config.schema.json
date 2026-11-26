@@ -20,14 +20,21 @@
       "host": {
         "title": "Local IP of Daikin Air Purifier",
         "type": "string",
-        "required": true,
         "format": "ipv4",
-        "placeholder": "192.168.1.1"
+        "placeholder": "192.168.1.1",
+        "description": "Optional when your Daikin account is set below: status is then read from the Daikin cloud, and this IP is the fallback. Required for read-only use without an account."
+      },
+      "refreshInterval": {
+        "title": "Refresh Interval (seconds)",
+        "type": "integer",
+        "default": 60,
+        "minimum": 15,
+        "description": "How often status is fetched. Minimum 15 seconds from the local IP, 60 from the Daikin cloud. Each refresh is one request; refreshing too often can get your Daikin account rate-limited (the plugin then pauses cloud requests for 5 minutes)."
       },
       "username": {
         "title": "Daikin Account Email",
         "type": "string",
-        "description": "Required for control. The email you sign in to the Daikin Smart App with. Leave the whole Control section empty for read-only."
+        "description": "Required for control and cloud status. The email you sign in to the Daikin Smart App with. Leave the whole section empty to read status from the local IP only."
       },
       "password": {
         "title": "Daikin Account Password",
@@ -35,22 +42,22 @@
         "x-schema-form": {
           "type": "password"
         },
-        "description": "Required for control. Your Daikin Smart App password."
+        "description": "Required for control and cloud status. Your Daikin Smart App password."
       },
       "clientSecret": {
         "title": "Client Secret",
         "type": "string",
-        "description": "Required for control. The client_secret in the body of the Daikin Smart App's https://prod-dsioti.daikinsmartdb.jp/dsioti/oauth2/token request, captured once."
+        "description": "Required for control and cloud status. The client_secret in the body of the Daikin Smart App's https://prod-dsioti.daikinsmartdb.jp/dsioti/oauth2/token request, captured once."
       },
       "terminalId": {
         "title": "Terminal ID",
         "type": "string",
-        "description": "Required for control. The terminalid query parameter of the Daikin Smart App's https://api.daikinsmartdb.jp/cleaner/set_control_info request, captured once."
+        "description": "Required for control only (cloud status works without it). The terminalid query parameter of the Daikin Smart App's https://api.daikinsmartdb.jp/cleaner/set_control_info request, captured once."
       },
       "port": {
         "title": "Port",
         "type": "string",
-        "description": "Optional. Leave empty to read it from the purifier (port= at http://<purifier IP>/common/basic_info). Usually 30050.",
+        "description": "Optional. Leave empty to read it from the purifier (port= at http://<purifier IP>/common/basic_info), or 30050 when there's no local IP.",
         "placeholder": "30050"
       },
       "clientId": {
@@ -78,18 +85,15 @@
         "type": "string",
         "placeholder": "MCK70W"
       },
-      "cacheDuration": {
-        "title": "Cache Duration (seconds)",
-        "description": "How often the purifier is polled on the local network.",
-        "type": "integer",
-        "required": true,
-        "default": 60,
-        "minimum": 15
-      },
       "serial": {
         "title": "Serial",
         "type": "string",
         "placeholder": "123-456-789"
+      },
+      "cacheDuration": {
+        "title": "Cache Duration (deprecated)",
+        "type": "integer",
+        "description": "Old name for Refresh Interval. Still read when Refresh Interval is empty."
       }
     }
   },
@@ -97,11 +101,11 @@
     "name",
     "accessory",
     "host",
-    "cacheDuration",
+    "refreshInterval",
     {
       "type": "fieldset",
-      "title": "Control from HomeKit (Daikin cloud)",
-      "description": "Fill in Email, Password, Client Secret and Terminal ID to control the purifier. Leave them all empty for read-only.",
+      "title": "Daikin cloud (status and control from HomeKit)",
+      "description": "Email, Password and Client Secret read status from the Daikin cloud; add Terminal ID to also control the purifier. Leave them all empty to use the local IP only.",
       "items": [
         "username",
         "password",
@@ -119,7 +123,8 @@
         "clientId",
         "uuid",
         "code",
-        "refreshToken"
+        "refreshToken",
+        "cacheDuration"
       ]
     },
     {

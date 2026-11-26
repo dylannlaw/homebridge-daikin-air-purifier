@@ -142,7 +142,8 @@ describe('choosing local-only mode or control', () => {
     mockServers();
     const { client, log } = makeClient(LOCAL_CONFIG);
     assert.equal(client.controlEnabled, false);
-    assert.ok(log.has('info', 'local-only mode'));
+    assert.equal(client.cloudEnabled, false);
+    assert.ok(log.has('info', 'read-only mode: status is read from the purifier'));
   });
 
   test('enables control with email, password, client secret, terminal ID and port', () => {

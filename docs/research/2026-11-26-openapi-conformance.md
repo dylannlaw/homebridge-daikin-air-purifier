@@ -8,7 +8,7 @@ The spec is unofficial and partly inferred, so following it doesn't prove contro
 
 | Scenario | Spec | Before | Now |
 |---|---|---|---|
-| Read status | `GET /cleaner/get_unit_info`, text `ret=OK,group=k%3Dv…` | Same path and format, read from the purifier locally with no login | Unchanged ✅ |
+| Read status | `GET api…/cleaner/get_unit_info` with `id`, `spw`, `port` and the token; text `ret=OK,group=k%3Dv…` | Same path and format, but only from the purifier's local IP | ✅ From the cloud as in the spec when a login is configured, with the local IP as the fallback |
 | Start the login session | Not in the spec (it starts at `POST /auth` with the session's `state`) | `GET /dsioti/oauth2/authorize` with PKCE | Unchanged |
 | Sign in | `POST /dsioti/oauth2/auth`, JSON `username`, `password`, `state`, `uuid`; code in the `location` header | Matched | Unchanged ✅ |
 | Exchange the code | `POST prod-dsioti…/dsioti/oauth2/token`, form-encoded `grant_type`, `code`, `redirect_uri`, `client_id`, `client_secret`, `code_verifier` | ❌ JSON to `api…/premise/dsiot/login`, plus `uuid` | ✅ Follows the spec |

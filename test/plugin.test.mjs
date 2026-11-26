@@ -1,6 +1,6 @@
 import { describe, test, afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { HOST, LOCAL_CONFIG, hap, makeLog, mockServers, settle, tempStorage } from './helpers.mjs';
+import { CLOUD_UNIT, HOST, LOCAL_CONFIG, PASSWORD_CONFIG, hap, makeLog, mockServers, settle, tempStorage } from './helpers.mjs';
 
 const { default: plugin } = await import('../dist/index.js');
 const C = hap.Characteristic;
@@ -81,6 +81,25 @@ describe('plugin', () => {
     mock.timers.tick(1);
     await settle();
     assert.equal(server.count(UNIT), 2);
+  });
+
+  test('polls once per refreshInterval, which takes precedence over cacheDuration', async () => {
+    const { server } = await startAccessory({ ...LOCAL_CONFIG, refreshInterval: 20, cacheDuration: 90 });
+    const before = server.count(UNIT);
+    mock.timers.tick(20_000);
+    await settle();
+    assert.equal(server.count(UNIT), before + 1);
+  });
+
+  test('polls the Daikin cloud no more often than every 60 seconds', async () => {
+    const { server } = await startAccessory({ ...PASSWORD_CONFIG, refreshInterval: 15 });
+    const before = server.count(CLOUD_UNIT);
+    mock.timers.tick(59_999);
+    await settle();
+    assert.equal(server.count(CLOUD_UNIT), before);
+    mock.timers.tick(1);
+    await settle();
+    assert.equal(server.count(CLOUD_UNIT), before + 1);
   });
 
   test('an error while updating HomeKit is logged and polling continues', async () => {

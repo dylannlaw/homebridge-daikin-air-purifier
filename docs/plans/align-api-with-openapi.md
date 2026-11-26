@@ -34,11 +34,23 @@ Control from HomeKit uses the Daikin cloud the way the current Daikin Smart App 
   - When some control settings are filled in but not all, startup logs the missing ones by name (never their values).
   - `config.schema.json` groups the control settings in one section and says which are required.
 
+### Addition: status from the cloud, local IP as fallback
+
+Requested after the first version: when the Daikin login works, read status from the cloud instead of needing the local IP.
+
+- **Cloud status:** the spec's `GET https://api.daikinsmartdb.jp/cleaner/get_unit_info` takes `id`, `spw`, `port` and the bare token, the same as control minus `terminalid`. So `username` + `password` + `clientSecret` (or a captured code or refresh token) is enough for cloud status. `terminalId` is only needed for control.
+- **Fallback:** each refresh tries the cloud first. If that fails (network, server error, non-`ret=OK`, rate-limit pause, rejected login) and `host` is set, the same refresh reads the local IP, and the next refresh tries the cloud again. The fallback is logged once per outage. `host` is no longer required; with neither `host` nor a login, startup logs an error.
+- **Port without a host:** `port` setting, else the local `basic_info`, else the spec's `30050`.
+- **Refresh interval:** `refreshInterval` (seconds) replaces `cacheDuration`, which is still read when `refreshInterval` is empty, so existing configs keep their interval. The minimum is 15 s for the local IP and **60 s for the cloud**, raised with a warning, because every cloud refresh is one request on the user's account. Rejected: no cloud minimum, because with HomeKit polling that would make getting rate-limited easy; and a fixed long cloud interval, because the user asked for it to be configurable.
+- **Login backoff:** status refreshes now call the login path too. After a login fails for a reason worth retrying (network, server error), the plugin waits 5 minutes before the next attempt instead of retrying on every refresh. A rejected password still stops until restart.
+
 ## Files expected to change
 
 - `src/client.ts`, `src/types.d.ts`
 - `test/helpers.mjs`, `test/client.auth.test.mjs`, `test/client.control.test.mjs`
-- `README.md` (required settings table, "How control works, end to end"), `config.schema.json` (layout, descriptions)
+- `src/index.ts` (poll interval from the client)
+- `test/client.status.test.mjs` (new), `test/plugin.test.mjs`
+- `README.md` (What works, refresh interval and rate limits, how status is read, required settings table, "How control works, end to end"), `config.schema.json` (layout, descriptions)
 
 ## Verification
 

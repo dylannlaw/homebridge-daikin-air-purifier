@@ -9,6 +9,7 @@ import type { AirPurifier, ControlInfo, SensorInfo, TokenResponse, UnitInfoRespo
 // Endpoints follow docs/reference/daikin-smart-api.openapi.yaml.
 const API_BASE = 'https://api.daikinsmartdb.jp';
 const SET_CONTROL_URL = `${API_BASE}/cleaner/set_control_info`;
+const UNIT_INFO_URL = `${API_BASE}/cleaner/get_unit_info`;
 // The Daikin Smart App's login server and the public OAuth client it uses.
 const AUTH_BASE = 'https://prod-dsioti.daikinsmartdb.jp/dsioti/oauth2';
 const TOKEN_URL = `${AUTH_BASE}/token`;
@@ -22,6 +23,12 @@ const TOKEN_REFRESH_MARGIN_MS = 5 * 60 * 1000;
 const DEFAULT_TOKEN_LIFETIME_S = 60 * 60;
 // After a 429, make no cloud calls for this long.
 const RATE_LIMIT_BACKOFF_MS = 5 * 60 * 1000;
+// How often status is refreshed. The cloud has a higher minimum, because each refresh is one Daikin API request.
+const DEFAULT_REFRESH_INTERVAL_S = 60;
+const MIN_LOCAL_REFRESH_INTERVAL_S = 15;
+const MIN_CLOUD_REFRESH_INTERVAL_S = 60;
+// The spec's example port, used when it isn't configured and there's no local IP to read it from.
+const DEFAULT_PORT = '30050';
 // Settings that only matter for control. If any is set while control is off, the log says which ones are missing.
 const CONTROL_SETTINGS = ['username', 'password', 'clientSecret', 'terminalId', 'port', 'code', 'refreshToken'];
 
@@ -44,13 +51,16 @@ type StoredTokens = {
 };
 
 class Client {
-  // False in local-only mode: no cloud settings are configured, so the purifier can be read but not controlled.
+  // True when a Daikin login is configured: status is read from the Daikin cloud, with the local IP as the fallback.
+  readonly cloudEnabled: boolean;
+  // True when the cloud login and the Terminal ID are configured, so the purifier can be controlled.
   readonly controlEnabled: boolean;
+  // How often status is refreshed, in milliseconds. Also how long a read is cached.
+  readonly refreshInterval: number;
 
   private config: AccessoryConfig;
   private log: Logging;
   private hap: HAP;
-  private cacheDuration: number;
   private tokenFile: string;
 
   private unitInfo: UnitInfo;
@@ -72,12 +82,15 @@ class Client {
   private passwordLoginFailed = false;
   // The port read from the purifier's /common/basic_info when `port` isn't in the config.
   private devicePort: string | null = null;
+  // After a login fails for a reason worth retrying (network, server error), don't try again before this time.
+  private authRetryAt = 0;
+  // Whether the last cloud status read failed, so the fallback to the local IP is logged once, not on every refresh.
+  private cloudStatusFailing = false;
 
   constructor(log: Logging, config: AccessoryConfig, storagePath: string, hap: HAP) {
     this.config = config;
     this.log = log;
     this.hap = hap;
-    this.cacheDuration = Math.max(Number(config.cacheDuration) || 60, 15) * 1000;
     this.tokenFile = path.join(storagePath, `daikin-air-purifier-${(config.name || 'default').replace(/[^\w-]/g, '_')}.json`);
 
     this.unitInfo = {
@@ -94,13 +107,22 @@ class Client {
 
     this.loadTokens();
     const missing = this.missingControlSettings();
+    this.cloudEnabled = !missing.some((key) => key !== 'terminalId');
     this.controlEnabled = missing.length === 0;
+    this.refreshInterval = this.getRefreshInterval();
 
-    if (this.controlEnabled) {
+    if (this.cloudEnabled) {
       this.ensureAuthenticated();
-    } else {
+    }
+    if (!this.cloudEnabled && !config.host) {
+      this.log.error(
+        'Nothing to read the purifier from: set its local IP (host), or your Daikin account email, password and Client Secret.',
+      );
+    }
+    if (!this.controlEnabled) {
       this.log.info(
-        'Running in local-only mode: sensors and status are read from the purifier, but it cannot be controlled from HomeKit. ' +
+        `Running in read-only mode: status is read from ${this.cloudEnabled ? 'the Daikin cloud' : 'the purifier'}, ` +
+        'but it cannot be controlled from HomeKit. ' +
         'To enable control, add your Daikin account email and password, the Client Secret and the Terminal ID.',
       );
       if (CONTROL_SETTINGS.some((key) => config[key])) {
@@ -108,6 +130,22 @@ class Client {
         this.log.warn(`Control is off because these settings are missing: ${missing.join(', ')}.`);
       }
     }
+  }
+
+  /**
+   * `refreshInterval` in seconds (`cacheDuration` is the old name and still works), at least 15 seconds, or 60 when
+   * status comes from the Daikin cloud, so polling alone can't get the account rate-limited.
+   */
+  private getRefreshInterval(): number {
+    const minimum = this.cloudEnabled ? MIN_CLOUD_REFRESH_INTERVAL_S : MIN_LOCAL_REFRESH_INTERVAL_S;
+    const requested = Number(this.config.refreshInterval ?? this.config.cacheDuration) || DEFAULT_REFRESH_INTERVAL_S;
+    if (requested < minimum) {
+      this.log.warn(
+        `Refresh interval ${requested}s is below the minimum of ${minimum}s${this.cloudEnabled ? ' for the Daikin cloud' : ''}; ` +
+        `using ${minimum}s. Refreshing too often can get the Daikin account rate-limited.`,
+      );
+    }
+    return Math.max(requested, minimum) * 1000;
   }
 
   /**
@@ -151,7 +189,7 @@ class Client {
    * Calls that arrive while a fetch is running share it, so HomeKit asking for 20 values at once makes one request.
    */
   async getUnitInfo(force = false): Promise<UnitInfo> {
-    if (!force && Date.now() - this.unitInfoFetchedAt < this.cacheDuration) {
+    if (!force && Date.now() - this.unitInfoFetchedAt < this.refreshInterval) {
       return this.unitInfo;
     }
     if (!this.unitInfoRequest) {
@@ -162,24 +200,64 @@ class Client {
     return this.unitInfoRequest;
   }
 
+  /**
+   * Reads status from the Daikin cloud when a login is configured, and from the purifier's local IP when the cloud
+   * isn't configured or the cloud read fails.
+   */
   private async fetchUnitInfo(): Promise<UnitInfo> {
-    const url = `http://${this.config.host}/cleaner/get_unit_info`;
-    try {
-      this.log.debug(`[GET] ${url}`);
-      const result = await axios.get<string | UnitInfoResponse>(url, { timeout: 10000 });
-      const info: UnitInfoResponse = typeof result.data === 'string' ? this.parseUnitInfo(result.data) : result.data;
-
+    let info: UnitInfoResponse | null = null;
+    if (this.cloudEnabled) {
+      info = await this.fetchCloudUnitInfo();
+    }
+    if (!info && this.config.host) {
+      info = await this.fetchLocalUnitInfo();
+    }
+    if (info) {
       this.unitInfo = {
-        airPurifier: { ...this.unitInfo.airPurifier, ...info?.ctrl_info },
-        sensorInfo: { ...this.unitInfo.sensorInfo, ...info?.sensor_info },
-        unitStatus: { ...this.unitInfo.unitStatus, ...info?.unit_status },
+        airPurifier: { ...this.unitInfo.airPurifier, ...info.ctrl_info },
+        sensorInfo: { ...this.unitInfo.sensorInfo, ...info.sensor_info },
+        unitStatus: { ...this.unitInfo.unitStatus, ...info.unit_status },
       };
-    } catch (error) {
-      this.log.error(`[GET] ${url}`, (error as AxiosError)?.message);
     }
     // Set this on failure too, so an unreachable device isn't retried on every characteristic read.
     this.unitInfoFetchedAt = Date.now();
     return this.unitInfo;
+  }
+
+  private async fetchCloudUnitInfo(): Promise<UnitInfoResponse | null> {
+    try {
+      const text = await this.cloudDeviceGet(UNIT_INFO_URL, {});
+      const info = this.parseUnitInfo(text);
+      if (info.ret !== 'OK') {
+        throw new Error(`Unable to get unit info: ${text}`);
+      }
+      if (this.cloudStatusFailing) {
+        this.log.info('Reading status from the Daikin cloud again.');
+      }
+      this.cloudStatusFailing = false;
+      return info;
+    } catch (error) {
+      const fallback = this.config.host ? ' Reading it from the purifier\'s local IP instead.' : '';
+      if (!this.cloudStatusFailing) {
+        this.log.warn(`Unable to read status from the Daikin cloud: ${(error as Error).message}.${fallback}`);
+      } else {
+        this.log.debug(`[GET] ${UNIT_INFO_URL}`, (error as Error).message);
+      }
+      this.cloudStatusFailing = true;
+      return null;
+    }
+  }
+
+  private async fetchLocalUnitInfo(): Promise<UnitInfoResponse | null> {
+    const url = `http://${this.config.host}/cleaner/get_unit_info`;
+    try {
+      this.log.debug(`[GET] ${url}`);
+      const result = await axios.get<string | UnitInfoResponse>(url, { timeout: 10000 });
+      return typeof result.data === 'string' ? this.parseUnitInfo(result.data) : (result.data ?? {});
+    } catch (error) {
+      this.log.error(`[GET] ${url}`, (error as AxiosError)?.message);
+      return null;
+    }
   }
 
   /**
@@ -238,7 +316,25 @@ class Client {
     }
   }
 
-  private async sendControlInfo(control: AirPurifier, retried = false): Promise<void> {
+  private async sendControlInfo(control: AirPurifier): Promise<void> {
+    this.log.debug(`[GET] ${SET_CONTROL_URL}`, control);
+    const response = await this.cloudDeviceGet(SET_CONTROL_URL, {
+      terminalid: this.config.terminalId,
+      pow: control.pow,
+      mode: control.mode,
+      airvol: control.airvol,
+      humd: control.humd,
+    });
+    if (response !== 'ret=OK') {
+      throw new Error(`Unable to set control info: ${response}`);
+    }
+  }
+
+  /**
+   * A GET to a Daikin cloud device endpoint (/cleaner/*), with what every one of them needs: the access token
+   * (bare, the spec's rawTokenAuth), `id` and `spw` from userinfo, and `port`. A 401/403 renews the login once.
+   */
+  private async cloudDeviceGet(url: string, params: Record<string, unknown>, retried = false): Promise<string> {
     this.checkRateLimit();
     if (!(await this.ensureAuthenticated())) {
       throw new Error('Not authenticated with the Daikin API. Check the authorization settings in the plugin config.');
@@ -247,25 +343,12 @@ class Client {
 
     try {
       const { id, spw } = await this.ensureDeviceCredentials();
-      this.log.debug(`[GET] ${SET_CONTROL_URL}`, control);
-      const response = await axios.get<string>(SET_CONTROL_URL, {
+      const response = await axios.get<string>(url, {
         timeout: 10000,
-        // The spec's rawTokenAuth: the bare access token, with no "Bearer" prefix.
         headers: { authorization: this.tokens.accessToken },
-        params: {
-          id,
-          spw,
-          port,
-          terminalid: this.config.terminalId,
-          pow: control.pow,
-          mode: control.mode,
-          airvol: control.airvol,
-          humd: control.humd,
-        },
+        params: { id, spw, port, ...params },
       });
-      if (response.data !== 'ret=OK') {
-        throw new Error(`Unable to set control info: ${response.data}`);
-      }
+      return String(response.data);
     } catch (error) {
       const status = (error as AxiosError).response?.status;
       this.handleRateLimit(status);
@@ -275,7 +358,7 @@ class Client {
         this.tokens.expiresAt = 0;
         this.tokens.deviceId = undefined;
         this.tokens.devicePassword = undefined;
-        return this.sendControlInfo(control, true);
+        return this.cloudDeviceGet(url, params, true);
       }
       throw error;
     }
@@ -310,6 +393,9 @@ class Client {
   private async ensurePort(): Promise<string> {
     if (this.config.port) {
       return String(this.config.port);
+    }
+    if (!this.config.host) {
+      return DEFAULT_PORT;
     }
     if (!this.devicePort) {
       const url = `http://${this.config.host}/common/basic_info`;
@@ -363,7 +449,8 @@ class Client {
   }
 
   private async authenticate(): Promise<boolean> {
-    if (Date.now() < this.rateLimitedUntil) {
+    // Status refreshes call this too, so a failing login waits out its backoff instead of retrying on every refresh.
+    if (Date.now() < this.rateLimitedUntil || Date.now() < this.authRetryAt) {
       return false;
     }
     if (this.tokens.refreshToken && (await this.refreshAccessToken())) {
@@ -453,7 +540,7 @@ class Client {
         );
       } else {
         // Network problem or server error: try again later.
-        this.scheduleTokenRefresh(RATE_LIMIT_BACKOFF_MS);
+        this.retryAuthLater();
       }
       return false;
     }
@@ -510,7 +597,7 @@ class Client {
         this.writeTokenFile();
       } else {
         // Network problem or server error: keep the refresh token and try again later.
-        this.scheduleTokenRefresh(RATE_LIMIT_BACKOFF_MS);
+        this.retryAuthLater();
       }
       return false;
     }
@@ -570,6 +657,12 @@ class Client {
     };
     this.writeTokenFile();
     this.scheduleTokenRefresh(lifetime - TOKEN_REFRESH_MARGIN_MS);
+  }
+
+  /** Tries the login again in 5 minutes, and not before. */
+  private retryAuthLater() {
+    this.authRetryAt = Date.now() + RATE_LIMIT_BACKOFF_MS;
+    this.scheduleTokenRefresh(RATE_LIMIT_BACKOFF_MS);
   }
 
   private scheduleTokenRefresh(delay: number) {

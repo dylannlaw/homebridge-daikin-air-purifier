@@ -19,13 +19,22 @@ export const API = 'api.daikinsmartdb.jp';
 export const LOGIN = `${AUTH}/token#authorization_code`;
 export const TOKEN = `${AUTH}/token#refresh_token`;
 export const USERINFO = `${AUTH}/userinfo`;
+export const SIGNIN_KEY = `${AUTH}/auth`;
 export const SET = `${API}/cleaner/set_control_info`;
+export const CLOUD_UNIT = `${API}/cleaner/get_unit_info`;
+export const LOCAL_UNIT = `${HOST}/cleaner/get_unit_info`;
 export const DEVICE_ID = 'FAKE_L_USER_ID';
 export const DEVICE_PASSWORD = 'FAKE_L_PASSWORD';
 
 export const UNIT_INFO = 'ret=OK,ctrl_info=pow%3d1%2cmode%3d0%2cairvol%3d3%2chumd%3d2,' +
   'sensor_info=htemp%3d26.0%2chhum%3d64%2cpm25%3d2%2cdust%3d1%2codor%3d3,' +
   'unit_status=filter%3d0%2cstrmr_cln%3d1%2cwater_supply%3d1%2cunit_err%3d0000';
+
+// The same shape from the Daikin cloud, with different values so tests can tell which one was read.
+export const CLOUD_UNIT_INFO = 'ret=OK,ctrl_info=pow%3D1%2Cmode%3D1%2Cairvol%3D2%2Chumd%3D1,' +
+  'sensor_info=htemp%3D22.5%2Chhum%3D55%2Cpm25%3D1%2Cdust%3D2%2Codor%3D1,' +
+  'unit_status=filter%3D0%2Cstrmr_cln%3D0%2Cwater_supply%3D0%2Cunit_err%3D0000,' +
+  'dev_setting=led_dsp%3D1%2Cd_sns%3D0%2Cc_lock%3D0%2Cstreamer%3D0%2Cact_ion%3D1%2Cbuzzer%3D1%2Cturbo%3D-%2Ceco_moni%3D1';
 
 export const PASSWORD_CONFIG = Object.freeze({
   name: 'Test', host: HOST, cacheDuration: 60,
@@ -60,6 +69,7 @@ export function mockServers(overrides = {}) {
     [TOKEN]: () => [200, { token_type: 'Bearer', id_token: 'ID2', access_token: 'ACCESS2', refresh_token: 'REFRESH2', expires_in: 3600 }],
     [USERINFO]: () => [200, { rsc: 2000, uid: 'FAKE_UID', l_user_id: DEVICE_ID, l_password: DEVICE_PASSWORD }],
     [SET]: () => [200, 'ret=OK'],
+    [CLOUD_UNIT]: () => [200, CLOUD_UNIT_INFO],
     ...overrides,
   };
 
