@@ -1,0 +1,135 @@
+# Every push to master that changes what ships publishes a new version to npm, tags it and creates a
+# GitHub Release with notes generated from the merged pull requests.
+#
+# Version: MAJOR.MINOR come from package.json, PATCH is this workflow's run number, so every release is
+# newer than the last without anyone bumping the version. package.json in the repository keeps a .0 patch
+# (e.g. 0.3.0); CI writes the real version into the package it publishes and does not commit it back.
+# To start a new minor or major line, change MAJOR.MINOR in package.json in a normal pull request.
+# Don't rename this file: its run number would start again from 1 and collide with published versions.
+#
+# Authentication: npm trusted publishing (OIDC) when it is set up for this repository on npmjs.com,
+# otherwise the NPM_TOKEN secret (a granular access token that can bypass 2FA).
+#
+# Security (the repo is public, so pull requests can come from anyone):
+# - This workflow only runs on pushes to master, never on pull requests, so fork code never sees secrets.
+# - The test job only reads the repo. Only the release job can write, and only its publish step gets
+#   the npm token.
+# - Third-party actions are pinned to a commit SHA. Dependabot proposes updates.
+name: Release
+
+# Only changes to what ships build and release: the plugin code, its settings schema, its dependencies,
+# its build config and this workflow. Docs and tests alone never make a release; they go out with the
+# next one. Dependency bumps from Dependabot do release, so users get them.
+# (workflow_dispatch still lets you release by hand.)
+on:
+  push:
+    branches: [master]
+    paths:
+      - "src/**"
+      - "config.schema.json"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - ".npmignore"
+      - ".github/workflows/release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One release at a time, in push order, so versions are published in the order the commits landed.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  test:
+    uses: ./.github/workflows/tests.yml
+
+  release:
+    name: Publish to npm
+    needs: test
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write # create the tag and GitHub Release
+      id-token: write # npm trusted publishing and provenance
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Use Node.js 24.x
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.x
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      # Trusted publishing (no token) needs npm 11.5.1 or newer.
+      - name: Update npm
+        run: npm install -g npm@latest
+
+      - name: Work out version
+        id: version
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          BASE=$(node -p "require('./package.json').version.split('.').slice(0, 2).join('.')")
+          VERSION="$BASE.$RUN_NUMBER"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          # A re-run of the same workflow run has the same run number, so it was already published.
+          if npm view "$NAME@$VERSION" version > /dev/null 2>&1; then
+            echo "$NAME@$VERSION is already on npm, nothing to publish."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Never publish a version lower than the latest one, which would move users backwards.
+          LATEST=$(npm view "$NAME" dist-tags.latest 2>/dev/null || echo 0.0.0)
+          if [ "$(printf '%s\n%s\n' "$LATEST" "$VERSION" | sort -V | tail -n 1)" != "$VERSION" ]; then
+            echo "::error::$VERSION is lower than $LATEST on npm. Raise MAJOR.MINOR in package.json."
+            exit 1
+          fi
+
+          echo "Publishing $NAME@$VERSION (latest on npm is $LATEST)."
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        if: steps.version.outputs.publish == 'true'
+        run: npm ci
+
+      - name: Set version
+        if: steps.version.outputs.publish == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: npm version "$VERSION" --no-git-tag-version --allow-same-version
+
+      # prepublishOnly runs lint, build and the tests again on the exact files being published.
+      - name: Publish to npm
+        if: steps.version.outputs.publish == 'true'
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # gh creates the tag through the API on the commit that was built, so no git credentials are needed.
+      - name: Create GitHub Release
+        if: steps.version.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if gh release view "v$VERSION" > /dev/null 2>&1; then
+            echo "Release v$VERSION already exists."
+            exit 0
+          fi
+          gh release create "v$VERSION" \
+            --title "v$VERSION" \
+            --target "$GITHUB_SHA" \
+            --generate-notes \
+            --latest
