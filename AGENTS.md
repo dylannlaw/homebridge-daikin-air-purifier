@@ -1,10 +1,10 @@
 # Working on homebridge-daikin-air-purifier
 
-This file is the working agreement for anyone changing this repository, human or AI agent. Follow it for every change. (`CLAUDE.md` just points here.)
+This file is the working agreement for anyone changing this repository, human or AI agent. Follow it for every change. (`CLAUDE.md` only points here, for tools that look for that file name.)
 
 A Homebridge plugin (TypeScript, ESM, Node 22+) for the Daikin MCK70W air purifier. It reads sensors and status over the local network and controls the purifier through the Daikin cloud, logging in with the user's Daikin account. It runs inside a user's Homebridge and is published to npm as `@dylannlaw/homebridge-daikin-air-purifier`. See [`README.md`](README.md) for what users see.
 
-This repository follows the shared standard in [dylannlaw/agent-skills](https://github.com/dylannlaw/agent-skills) (process: read, triage, plan, build, verify, document, record, PR). The sections below are the parts specific to this repository and win where they differ.
+The process is: read the history, plan, build, verify, document, record, pull request. [`docs/WORKFLOW.md`](docs/WORKFLOW.md) shows the flow. It needs no particular tool or agent.
 
 ## 1. Read the history first
 

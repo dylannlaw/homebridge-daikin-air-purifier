@@ -8,11 +8,11 @@ Mirrors [AGENTS.md](../AGENTS.md).
 
 - [ ] I read `docs/README.md` and the notes for what this touches, and this doesn't bring back an idea rejected in a change note (or I explain why).
 - [ ] Larger change: there is a plan in `docs/plans/`.
-- [ ] The verify command in `standard.json` passes.
+- [ ] `npm run lint && npm test` passes.
 - [ ] I looked at any UI I changed.
 - [ ] `README.md` and the other docs are updated if anything they describe changed.
 - [ ] I added a change note in `docs/changes/` and a line for it in `docs/README.md`.
-- [ ] Anything under `sensitivePaths` in `standard.json`: I explained how input stays validated and secrets stay out of code.
+- [ ] Anything that touches login, tokens, `config.schema.json` or the release workflow: I explained how input stays validated and secrets stay out of code.
 
 ## What I couldn't check
 
