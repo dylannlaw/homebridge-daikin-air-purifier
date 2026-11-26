@@ -146,7 +146,15 @@ Advanced settings (`clientId`, `uuid`, `code`, `refreshToken`) are described in 
 
 ### Mode switches
 
-HomeKit's Air Purifier only has Auto and Manual, so Daikin's Eco, Pollen and Circulator modes each get a switch, shown with the purifier in the Home app. Only the switch for the current mode is on:
+HomeKit's Air Purifier only has Auto and Manual, so Daikin's Eco, Pollen and Circulator modes each get a switch, shown with the purifier in the Home app. On a Japanese purifier, these are courses you pick with the コース button:
+
+| Switch in HomeKit | Label on the purifier | What it does |
+|---|---|---|
+| Eco | 節電 (setsuden, "power saving") | Runs quietly at a low fan speed to save power, and speeds up when the air gets dirty. |
+| Pollen | 花粉 (kafun, "pollen") | Pulses the airflow gently so pollen drops to the floor and is drawn into the filter. |
+| Circulator | サーキュレーター (circulator) | Strong airflow that moves air around the room like a fan while it cleans. |
+
+HomeKit's **Auto** is the purifier's おまかせ (omakase, "leave it to me") button. Only the switch for the current mode is on:
 
 - Turning one on puts the purifier in that mode (turning it on if it's off) and turns the others off. In these modes the purifier picks its own fan speed.
 - Turning off the current mode's switch puts the purifier back in Auto.
