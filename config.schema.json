@@ -22,7 +22,7 @@
         "type": "string",
         "format": "ipv4",
         "placeholder": "192.168.1.1",
-        "description": "Optional when your Daikin account is set below: status is then read from the Daikin cloud, and this IP is the fallback. Required for read-only use without an account."
+        "description": "Local mode: required, and the only setting needed (status only, no control from HomeKit). Cloud mode: optional; status is read from the Daikin cloud and this IP is the fallback."
       },
       "cacheDuration": {
         "title": "Cache Duration (seconds)",
@@ -35,7 +35,7 @@
       "username": {
         "title": "Daikin Account Email",
         "type": "string",
-        "description": "Required for control and cloud status. The email you sign in to the Daikin Smart App with. Leave the whole section empty to read status from the local IP only."
+        "description": "Required to control the purifier (together with Password, Client Secret and Terminal ID), and for cloud status. The email you sign in to the Daikin Smart App with. Leave the whole section empty to read status from the local IP only."
       },
       "password": {
         "title": "Daikin Account Password",
@@ -43,22 +43,22 @@
         "x-schema-form": {
           "type": "password"
         },
-        "description": "Required for control and cloud status. Your Daikin Smart App password."
+        "description": "Required to control the purifier (together with Email, Client Secret and Terminal ID), and for cloud status. Your Daikin Smart App password."
       },
       "clientSecret": {
         "title": "Client Secret",
         "type": "string",
-        "description": "Required for control and cloud status. The client_secret in the body of the Daikin Smart App's https://prod-dsioti.daikinsmartdb.jp/dsioti/oauth2/token request, captured once."
+        "description": "Required to control the purifier (together with Email, Password and Terminal ID), and for cloud status. The client_secret in the body of the Daikin Smart App's https://prod-dsioti.daikinsmartdb.jp/dsioti/oauth2/token request, captured once."
       },
       "terminalId": {
         "title": "Terminal ID",
         "type": "string",
-        "description": "Required for control only (cloud status works without it). The terminalid query parameter of the Daikin Smart App's https://api.daikinsmartdb.jp/cleaner/set_control_info request, captured once."
+        "description": "Required to control the purifier (together with Email, Password and Client Secret). Without it the purifier is read-only in HomeKit: status still comes from the Daikin cloud, but nothing can be changed. The terminalid query parameter of the Daikin Smart App's https://api.daikinsmartdb.jp/cleaner/set_control_info request, captured once."
       },
       "port": {
         "title": "Port",
         "type": "string",
-        "description": "Optional. Leave empty to read it from the purifier (port= at http://<purifier IP>/common/basic_info), or 30050 when there's no local IP.",
+        "description": "Cloud mode only, optional; not used in local mode. Leave empty to read it from the purifier (port= at http://<purifier IP>/common/basic_info), or 30050 when there's no local IP.",
         "placeholder": "30050"
       },
       "clientId": {
@@ -96,12 +96,19 @@
   "layout": [
     "name",
     "accessory",
-    "host",
     "cacheDuration",
     {
       "type": "fieldset",
-      "title": "Daikin cloud (status and control from HomeKit)",
-      "description": "Email, Password and Client Secret read status from the Daikin cloud; add Terminal ID to also control the purifier. Leave them all empty to use the local IP only.",
+      "title": "Local mode (status only, no control)",
+      "description": "Set only the purifier's local IP and leave Cloud mode empty. Status is read from the purifier on your network; it can't be controlled from HomeKit. In cloud mode this IP is optional and used as a fallback.",
+      "items": [
+        "host"
+      ]
+    },
+    {
+      "type": "fieldset",
+      "title": "Cloud mode (status and control from HomeKit)",
+      "description": "To control the purifier from HomeKit, all four are required: Email, Password, Client Secret and Terminal ID. With only Email, Password and Client Secret, status is read from the Daikin cloud but the purifier is read-only in HomeKit. For local mode, leave this whole section empty.",
       "items": [
         "username",
         "password",

@@ -20,7 +20,7 @@ This is a Homebridge plugin built for Daikin Air Purifier (based on MCK70W model
 | Feature | What you need |
 |---|---|
 | Temperature, humidity and air quality (PM2.5, dust, odour) sensors, and live status of power, mode, fan speed and humidifier | **Either** your Daikin account (email, password, `clientSecret`) to read them from the Daikin cloud, **or** the purifier's local IP (`host`), or both |
-| Control from HomeKit (on/off, fan speed, humidifier) | Your Daikin account plus `terminalId` (see [Configuration](#configuration)) |
+| Control from HomeKit (on/off, fan speed, humidifier) | Cloud mode: **all four of** `username`, `password`, `clientSecret` and `terminalId` (see [Configuration](#configuration)) |
 
 When your Daikin account is set, status is read from the Daikin cloud (`https://api.daikinsmartdb.jp`) with the same login as control, so the local IP isn't needed. If you also set `host`, the purifier's local IP is the fallback whenever the cloud can't be reached. Without an account, status is read on your local network only. Newer purifier firmware (for example `3_15_0`) has removed local control, so control always goes through the Daikin cloud, the same way the Daikin Smart App does. See [How it works](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/docs/guides/how-it-works.md) for details.
 
@@ -44,42 +44,65 @@ Then configure it in the plugin's settings in the Homebridge UI, or in your `con
 
 ## Configuration
 
-Local IP only (sensors and status, no account):
-```json
-{
-    "accessory": "DaikinAirPurifier",
-    "name": "DaikinAirPurifier",
-    "host": "192.168.1.1",
-    "cacheDuration": 60
-}
-```
+The plugin runs in one of two modes, depending on which settings you fill in.
 
-Daikin cloud, with control (`host` is optional and only used as a fallback):
+| Mode | Required settings | What you get |
+|---|---|---|
+| **Cloud mode** | `username`, `password`, `clientSecret`, `terminalId` | Status from the Daikin cloud, **and control from HomeKit** |
+| **Local mode** | `host` only | Status read from the purifier on your network. **No control**: the purifier is read-only in HomeKit |
+
+### Cloud mode (status and control)
+
+All four settings are required. If any one is missing, the purifier shows in the Home app but is **read-only**: you can see its status, but can't turn it on or off or change the fan speed or humidifier.
+
+| Required | What it is |
+|---|---|
+| `username` | Your Daikin Smart App email |
+| `password` | Your Daikin Smart App password |
+| `clientSecret` | Captured once from the app (see below) |
+| `terminalId` | Captured once from the app (see below) |
+
 ```json
 {
     "accessory": "DaikinAirPurifier",
     "name": "DaikinAirPurifier",
+    "cacheDuration": 60,
     "username": "you@example.com",
     "password": "your Daikin Smart App password",
     "clientSecret": "captured once from the app",
-    "terminalId": "captured once from the app",
-    "host": "192.168.1.1",
-    "cacheDuration": 300
+    "terminalId": "captured once from the app"
 }
 ```
 
+`host` and `port` are optional here. With `host` set, status is read from your network whenever the Daikin cloud can't be reached, and `port` is read from the purifier.
+
+### Local mode (status only)
+
+Only `host`, the purifier's local IP, is required. Leave the Daikin account settings empty. `port` isn't used in this mode.
+
+```json
+{
+    "accessory": "DaikinAirPurifier",
+    "name": "DaikinAirPurifier",
+    "cacheDuration": 60,
+    "host": "192.168.1.1"
+}
+```
+
+### All settings
+
 | Setting | Needed for | Description |
 |---|---|---|
-| `host` | Required without an account; otherwise an optional fallback | The purifier's local IP address. Give it a fixed IP in your router so it doesn't change. |
+| `host` | **Required in local mode**; optional fallback in cloud mode | The purifier's local IP address. Give it a fixed IP in your router so it doesn't change. |
 | `cacheDuration` | Optional (default 60) | How often, in seconds, status is fetched. See [Cache duration and rate limits](#cache-duration-and-rate-limits) below. |
-| `username`, `password` | **Cloud status and control** | The email and password you sign in to the [Daikin Smart App](https://apps.apple.com/app/id564109247) with. |
-| `clientSecret` | **Cloud status and control** | The `client_secret` in the body of the app's `https://prod-dsioti.daikinsmartdb.jp/dsioti/oauth2/token` request. |
-| `terminalId` | **Control** | The `terminalid` query parameter of the app's `https://api.daikinsmartdb.jp/cleaner/set_control_info` request, sent when you change a setting in the app. Cloud status works without it. |
-| `port` | Optional | Leave empty: the plugin reads it from the purifier (`port=` at `http://<purifier IP>/common/basic_info`), or uses `30050` when there's no `host`. |
+| `username`, `password` | **Required for control**; also cloud status | The email and password you sign in to the [Daikin Smart App](https://apps.apple.com/app/id564109247) with. |
+| `clientSecret` | **Required for control**; also cloud status | The `client_secret` in the body of the app's `https://prod-dsioti.daikinsmartdb.jp/dsioti/oauth2/token` request. |
+| `terminalId` | **Required for control** | The `terminalid` query parameter of the app's `https://api.daikinsmartdb.jp/cleaner/set_control_info` request, sent when you change a setting in the app. Cloud status works without it. |
+| `port` | Optional, cloud mode only | Leave empty: the plugin reads it from the purifier (`port=` at `http://<purifier IP>/common/basic_info`), or uses `30050` when there's no `host`. |
 
 `clientSecret` and `terminalId` have to be captured once from the Daikin Smart App's traffic; [Capturing credentials with mitmproxy](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/docs/guides/capturing-credentials.md) shows how. After that, the plugin logs in by itself. This capture may not work with the current app; see [Known limitations](#known-limitations).
 
-If some of these are filled in but not all, the log names the missing settings, for example `Control is off because these settings are missing: terminalId.`
+If some of the control settings are filled in but not all, the log says `Running in read-only mode` and names the missing ones, for example `Control is off because these settings are missing: terminalId.`
 
 Advanced settings (`clientId`, `uuid`, `code`, `refreshToken`) are described in [How it works](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/docs/guides/how-it-works.md#advanced-settings). Leave them empty unless you need them.
 
