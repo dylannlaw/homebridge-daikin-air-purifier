@@ -96,7 +96,9 @@ describe('plugin', () => {
   });
 
   test('polls the Daikin cloud no more often than every 60 seconds', async () => {
-    const { server } = await startAccessory({ ...PASSWORD_CONFIG, cacheDuration: 15 });
+    const config = { ...PASSWORD_CONFIG, cacheDuration: 15 };
+    delete config.host;
+    const { server } = await startAccessory(config);
     const before = server.count(CLOUD_UNIT);
     mock.timers.tick(59_999);
     await settle();

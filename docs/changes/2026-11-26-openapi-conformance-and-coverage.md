@@ -1,3 +1,5 @@
+> Superseded in part by [Read status from the local IP first](2026-11-26-local-status-first.md): with `host` set, status is now read locally first and the cloud is the fallback.
+
 # Follow the OpenAPI reference for API calls, and read status from the cloud
 
 ## Summary

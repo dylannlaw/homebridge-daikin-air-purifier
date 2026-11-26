@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file. Every pull requ
 
 Versions 0.2.3 and 1.0.0 to 1.0.4 were never published: the patch number used to come from the release workflow's run number.
 
+## [1.1.0](https://github.com/dylannlaw/homebridge-daikin-air-purifier/compare/v1.0.6...v1.1.0) (2026-11-26)
+
+
+### Features
+
+* when the purifier's local IP (`host`) is set, status is read from the purifier on your network first, which answers in well under a second, and the Daikin cloud is only the fallback (at most once a minute). Before, status came from the cloud first, which can take several seconds or time out. Control still goes through the cloud. Set `host` in cloud mode for faster, more reliable status; the README now recommends it
+* with `host` set, `cacheDuration` can go down to 15 seconds in cloud mode too, since status no longer makes cloud requests
+
 ## [1.0.6](https://github.com/dylannlaw/homebridge-daikin-air-purifier/compare/v1.0.5...v1.0.6) (2026-11-26)
 
 
