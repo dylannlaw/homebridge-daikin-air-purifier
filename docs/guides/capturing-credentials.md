@@ -25,7 +25,7 @@ Cloud status needs `clientSecret`. Control needs `clientSecret` and `terminalId`
 
 While the capture is running, mitmproxy can read everything the phone sends, including your Daikin password and tokens, and traffic from other apps.
 
-- Only capture Daikin's hosts (the `--allow-hosts` option below does that).
+- Only capture Daikin's hosts once the certificate is installed (the `--allow-hosts` option in [step 3](#step-3-trust-mitmproxys-certificate-on-the-iphone) does that).
 - Don't save the capture, and never post it, a screenshot of it, or the values from it in an issue or chat. If you need help, replace the values with fakes.
 - When you're done, stop mitmproxy, turn off the VPN on the phone, and remove the mitmproxy certificate (see [Clean up](#step-6-clean-up)).
 
@@ -39,12 +39,12 @@ While the capture is running, mitmproxy can read everything the phone sends, inc
 ## Step 1: Start mitmproxy in WireGuard mode
 
 ```sh
-mitmweb --mode wireguard --allow-hosts 'daikinsmartdb\.jp$'
+mitmweb --mode wireguard
 ```
 
 `mitmweb` opens its web interface in your browser (usually `http://127.0.0.1:8081`). The WireGuard server listens on UDP port `51820`; if your computer's firewall asks, allow incoming connections for mitmproxy.
 
-`--allow-hosts` makes mitmproxy decrypt only Daikin's hosts. Other traffic still passes through the tunnel, but isn't decrypted or shown.
+Start it without any other options for now: it has to intercept `mitm.it` in step 3 to hand out its certificate. You'll limit it to Daikin's hosts at the end of step 3.
 
 ## Step 2: Connect the iPhone
 
@@ -52,7 +52,7 @@ mitmweb --mode wireguard --allow-hosts 'daikinsmartdb\.jp$'
 2. On the iPhone, open the WireGuard app, tap **+** → **Create from QR code**, scan it, and allow the VPN configuration.
 3. Turn the tunnel on.
 
-To check it works, open any website in Safari. It should still load. You won't see it in mitmweb because of `--allow-hosts`.
+To check it works, open any website in Safari. It should appear in mitmweb (with a certificate warning in Safari until step 3).
 
 ## Step 3: Trust mitmproxy's certificate on the iPhone
 
@@ -60,9 +60,24 @@ To check it works, open any website in Safari. It should still load. You won't s
 2. Open **Settings → General → VPN & Device Management**, tap the **mitmproxy** profile and **Install** it.
 3. Open **Settings → General → About → Certificate Trust Settings** and turn on full trust for **mitmproxy**.
 
-Without step 3 every HTTPS request fails, in Safari too.
+Without the last step every intercepted HTTPS request fails.
 
-If `http://mitm.it` says traffic isn't passing through mitmproxy, temporarily start mitmweb without `--allow-hosts`, download the certificate, then restart it with the option.
+If `http://mitm.it` says "traffic is not going through mitmproxy", you're seeing the real mitm.it website, so the request didn't reach mitmproxy. Check that:
+
+- mitmweb was started **without** `--allow-hosts` (or any other filter).
+- The tunnel is on in the WireGuard app, and its **Latest handshake** is recent. If there's no handshake, your phone can't reach your computer: check they're on the same Wi-Fi, and that the firewall allows UDP port `51820`.
+- **iCloud Private Relay** and other VPNs are off (**Settings → [your name] → iCloud → Private Relay**).
+- You typed `http://`, not `https://`.
+
+Now stop mitmweb (Ctrl+C) and start it again so it only decrypts Daikin's hosts. This keeps your other apps' traffic out of the capture:
+
+```sh
+mitmweb --mode wireguard --allow-hosts 'daikinsmartdb\.jp'
+```
+
+Don't end the pattern with `$`: mitmproxy matches it against `host:port` (for example `api.daikinsmartdb.jp:443`), so `daikinsmartdb\.jp$` never matches and nothing is decrypted. You'd see only DNS lookups (shown as `QUERY`) for Daikin's hosts.
+
+mitmproxy keeps its WireGuard keys (in `~/.mitmproxy`), so the tunnel on the phone keeps working; turn it off and on again if it doesn't reconnect. Other traffic still passes through the tunnel, but isn't decrypted or shown.
 
 ## Step 4: Make the app send the requests
 
@@ -89,7 +104,7 @@ Put them in the plugin's settings in the Homebridge UI, or in your `config.json`
 
 | What you see | What it means |
 |---|---|
-| No Daikin requests in mitmweb, and the app works normally | The traffic isn't going through mitmproxy. Check the tunnel is on and that `--allow-hosts` matches (try without it). |
+| No Daikin requests in mitmweb, and the app works normally | The traffic isn't going through mitmproxy. Check the tunnel is on and has a recent handshake, and that `--allow-hosts` matches (try without it). |
 | The app shows an error such as `0406` or "can't connect", and mitmweb shows a failed TLS handshake for a `daikinsmartdb.jp` host | The app rejected mitmproxy's certificate. This is the problem described at the top; there's no known way around it yet. Please report it in [#2](https://github.com/dylannlaw/homebridge-daikin-air-purifier/issues/2) with your app version. |
 | Safari can't open any HTTPS page | The certificate isn't fully trusted. Repeat [step 3](#step-3-trust-mitmproxys-certificate-on-the-iphone). |
 | You see `oauth2/token` but no `client_secret` in it | Note what the request does contain (names only, not values) and report it in [#2](https://github.com/dylannlaw/homebridge-daikin-air-purifier/issues/2). The login may have changed. |
