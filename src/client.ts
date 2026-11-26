@@ -473,6 +473,8 @@ class Client {
       this.tokenTimer = null;
       this.ensureAuthenticated();
     }, Math.max(delay, 60 * 1000));
+    // Don't keep the process alive just for a renewal, so Homebridge (and the tests) can exit without waiting up to an hour.
+    this.tokenTimer.unref?.();
   }
 
   private loadTokens() {
