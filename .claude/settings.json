@@ -1,0 +1,11 @@
+{
+  "model": "sonnet",
+  "extraKnownMarketplaces": {
+    "dylannlaw": {
+      "source": { "source": "github", "repo": "dylannlaw/agent-skills" }
+    }
+  },
+  "enabledPlugins": {
+    "engineering-workflow@dylannlaw": true
+  }
+}

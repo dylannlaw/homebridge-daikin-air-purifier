@@ -1,0 +1,11 @@
+# Keeps GitHub Actions (pinned in .github/workflows) and package dependencies up to date.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly

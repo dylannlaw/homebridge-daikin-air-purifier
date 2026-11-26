@@ -135,3 +135,11 @@ web_modules/
 .yarn/unplugged
 .yarn/build-state.yml
 .pnp.*
+
+# Project workflow files, not part of the published package
+docs
+.claude
+AGENTS.md
+CLAUDE.md
+SECURITY.md
+standard.json

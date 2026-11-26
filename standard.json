@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/dylannlaw/agent-skills/main/plugins/engineering/workflow/standard.schema.json",
+  "standard": "1",
+  "commands": {
+    "verify": "npm run lint && npm test",
+    "build": "npm run build",
+    "formatFile": ["npx", "eslint", "--fix"],
+    "formatExtensions": [".ts"]
+  },
+  "sensitivePaths": [
+    "src/client.ts",
+    "src/index.ts",
+    "config.schema.json",
+    ".github/workflows/"
+  ]
+}

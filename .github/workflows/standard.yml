@@ -1,0 +1,17 @@
+name: Standard
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: standard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  standard:
+    uses: dylannlaw/agent-skills/.github/workflows/standard-check.yml@v1
