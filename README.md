@@ -3,7 +3,7 @@
 <p align="center">
   Bring your Daikin air purifier into Apple Home: see the air in your room and control the purifier from your iPhone, Siri and automations.<br>
   <a href="#get-started"><b>⬇︎ Install the plugin</b></a>
-  · Free · Built for the Daikin MCK70W · Tested on firmware 3.17.0-g4 · Homebridge 1.8+ or 2.x
+  · Free · Built for the Daikin MCK70W · Tested on firmware 3.17.0-g4 · Homebridge 2.x
 </p>
 
 <p align="center">
