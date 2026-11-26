@@ -33,7 +33,7 @@ class AirPurifier {
   }
 
   async getActive() {
-    const { airPurifier } = await this.client.getUnitInfo();
+    const { airPurifier } = this.client.getCachedUnitInfo();
     if (airPurifier.pow === PowerStatus.On) {
       return this.api.hap.Characteristic.Active.ACTIVE;
     } else {
@@ -55,7 +55,7 @@ class AirPurifier {
   }
 
   async getCurrentAirPurifierState() {
-    const { airPurifier } = await this.client.getUnitInfo();
+    const { airPurifier } = this.client.getCachedUnitInfo();
 
     if (airPurifier?.pow === PowerStatus.Off) {
       return this.api.hap.Characteristic.CurrentAirPurifierState.INACTIVE;
@@ -67,7 +67,7 @@ class AirPurifier {
   }
 
   async getTargetAirPurifierState() {
-    const { airPurifier } = await this.client.getUnitInfo();
+    const { airPurifier } = this.client.getCachedUnitInfo();
     const { mode, airvol, humd } = airPurifier;
     if (mode === Mode.Smart || airvol === FanSpeed.Turbo || humd === HumidityLevel.VeryHigh) {
       return this.api.hap.Characteristic.TargetAirPurifierState.AUTO;
@@ -76,7 +76,7 @@ class AirPurifier {
   }
 
   async getRotationSpeed() {
-    const { airPurifier } = await this.client.getUnitInfo();
+    const { airPurifier } = this.client.getCachedUnitInfo();
     switch (airPurifier?.airvol) {
       case FanSpeed.Quiet:
         return 15;
@@ -94,7 +94,7 @@ class AirPurifier {
   }
 
   async setRotationSpeed(rotation) {
-    const { airPurifier } = await this.client.getUnitInfo();
+    const { airPurifier } = this.client.getCachedUnitInfo();
     let speed = FanSpeed.Off;
     if (rotation >= 98) {
       speed = FanSpeed.Turbo;

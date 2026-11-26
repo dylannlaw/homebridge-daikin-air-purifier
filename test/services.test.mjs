@@ -24,6 +24,7 @@ function fakeClient({ airPurifier = {}, sensorInfo = {}, unitStatus = {} } = {})
     state,
     controlEnabled: true,
     getUnitInfo: mock.fn(async () => state),
+    getCachedUnitInfo: mock.fn(() => state),
     setControlInfo: mock.fn(async () => {}),
     bindSet(characteristic, handler) {
       if (handler) {

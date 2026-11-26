@@ -57,13 +57,13 @@ class ModeSwitch {
   }
 
   async isOn(mode: Mode) {
-    const { airPurifier } = await this.client.getUnitInfo();
+    const { airPurifier } = this.client.getCachedUnitInfo();
     return airPurifier.pow === PowerStatus.On && airPurifier.mode === mode;
   }
 
   async setOn(name: ModeSwitchName, on: boolean) {
     const { mode } = MODES[name];
-    const { airPurifier } = await this.client.getUnitInfo();
+    const { airPurifier } = this.client.getCachedUnitInfo();
 
     if (on) {
       await this.client.setControlInfo({ pow: PowerStatus.On, mode, airvol: FanSpeed.Off, humd: airPurifier.humd });
