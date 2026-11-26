@@ -39,6 +39,15 @@ jobs:
       - name: Build and test
         run: npm run test:coverage
 
+      # Coverage is the same on every Node.js version, so upload it once.
+      - name: Upload coverage to Codecov
+        if: matrix.node-version == '24.x'
+        uses: codecov/codecov-action@v7
+        with:
+          files: coverage/lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
   # Publishes to npm when package.json has a version that isn't on npm yet, after every test job has passed.
   release:
     name: Publish to npm

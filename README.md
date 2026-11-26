@@ -1,6 +1,8 @@
 
 # Homebridge Daikin Air Purifier
 
+[![codecov](https://codecov.io/gh/dylannlaw/homebridge-daikin-air-purifier/graph/badge.svg)](https://codecov.io/gh/dylannlaw/homebridge-daikin-air-purifier)
+
 This is a Homebridge plugin built for Daikin Air Purifier (based on MCK70W model). 
 
 ## What works
@@ -73,6 +75,9 @@ Leave these empty unless you need them:
 - `uuid`: an app install ID. The plugin generates and keeps one.
 - `code`: a single-use authorization code captured from the app, instead of email and password.
 - `refreshToken`: a `refresh_token` captured from the app, instead of email and password.
+
+### API reference
+An unofficial OpenAPI description of the Daikin Smart API, reverse-engineered from the app's traffic, is in [`docs/reference/daikin-smart-api.openapi.yaml`](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/docs/reference/daikin-smart-api.openapi.yaml). [This note](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/docs/research/2026-11-26-openapi-conformance.md) lists where the plugin differs from it, which is likely why control doesn't work yet.
 
 ### How API calls are kept low
 - Status is read from the purifier on your local network once per `cacheDuration`, and that one result is shared by every HomeKit request.

@@ -4,6 +4,7 @@ import axios, { AxiosError } from 'axios';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { URLSearchParams } from 'url';
 import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
@@ -48,7 +49,7 @@ export function mockServers(overrides = {}) {
   axios.defaults.adapter = async (config) => {
     const url = new URL(config.url);
     const key = url.host + url.pathname;
-    const body = typeof config.data === 'string' ? JSON.parse(config.data) : config.data;
+    const body = parseBody(config.data);
     const request = { method: config.method, key, params: config.params ?? {}, body, headers: config.headers };
     requests.push(request);
     const route = routes[key];
@@ -73,6 +74,18 @@ export function mockServers(overrides = {}) {
     count: (key) => requests.filter((r) => r.key === key).length,
     last: (key) => requests.filter((r) => r.key === key).at(-1),
   };
+}
+
+/** Request bodies arrive serialised: JSON for most calls, application/x-www-form-urlencoded for an OAuth token call. */
+function parseBody(data) {
+  if (typeof data !== 'string') {
+    return data;
+  }
+  try {
+    return JSON.parse(data);
+  } catch {
+    return Object.fromEntries(new URLSearchParams(data));
+  }
 }
 
 export function makeLog() {
