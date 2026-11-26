@@ -6,7 +6,7 @@ The plugin's cloud calls now follow the unofficial Daikin Smart API reference (a
 - The code exchange and token renewal use `POST /dsioti/oauth2/token`, form-encoded.
 - The device credentials come from `GET /dsioti/oauth2/userinfo`; before, the literal `ID` / `SPW` was sent.
 - `set_control_info` sends the bare access token.
-- With a Daikin login configured, status is read from the cloud's `GET /cleaner/get_unit_info`, as in the spec, so the local IP isn't needed. `host` is now optional and used as the fallback when a cloud read fails. A new `refreshInterval` setting (old name `cacheDuration` still read) sets how often status is fetched: at least 15 s locally, 60 s from the cloud, with the rate-limit risk documented.
+- With a Daikin login configured, status is read from the cloud's `GET /cleaner/get_unit_info`, as in the spec, so the local IP isn't needed. `host` is now optional and used as the fallback when a cloud read fails. The existing `cacheDuration` still sets how often status is fetched: at least 15 s locally, and now at least 60 s from the cloud, with the rate-limit risk documented.
 - The settings control needs are now the ones `set_control_info` actually depends on: `username`, `password`, `clientSecret` and `terminalId` are required. `port` is optional and read from the purifier's local `basic_info` when it's empty. Startup names any missing settings.
 
 Unit tests cover each call. CI uploads coverage to Codecov, and the README shows a badge. Test runs no longer skip files at random.
@@ -28,9 +28,9 @@ A new capture of the Daikin Smart App's traffic (November 2026) was written up a
 
 ## Files
 
-- `src/client.ts`: cloud status with local fallback, `refreshInterval`, login backoff, shared cloud device call.
-- `src/index.ts`: polls on the client's refresh interval.
-- `test/client.status.test.mjs`: cloud status, fallback and refresh interval tests. `test/plugin.test.mjs`: polling interval tests.
+- `src/client.ts`: cloud status with local fallback, cloud minimum for `cacheDuration`, login backoff, shared cloud device call.
+- `src/index.ts`: polls on the client's `cacheDuration`, which applies the cloud minimum.
+- `test/client.status.test.mjs`: cloud status, fallback and `cacheDuration` tests. `test/plugin.test.mjs`: polling interval tests.
 - `src/client.ts`, `src/types.d.ts`: token endpoint, userinfo, bare token, `TokenResponse` / `UserInfo` types from the spec, timer `unref()`.
 - `test/helpers.mjs`, `test/client.auth.test.mjs`, `test/client.control.test.mjs`, `test/client.local.test.mjs`: spec endpoints in the mock, updated and new tests.
 - `docs/reference/daikin-smart-api.openapi.yaml`: the spec, unchanged.

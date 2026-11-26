@@ -23,10 +23,10 @@ const TOKEN_REFRESH_MARGIN_MS = 5 * 60 * 1000;
 const DEFAULT_TOKEN_LIFETIME_S = 60 * 60;
 // After a 429, make no cloud calls for this long.
 const RATE_LIMIT_BACKOFF_MS = 5 * 60 * 1000;
-// How often status is refreshed. The cloud has a higher minimum, because each refresh is one Daikin API request.
-const DEFAULT_REFRESH_INTERVAL_S = 60;
-const MIN_LOCAL_REFRESH_INTERVAL_S = 15;
-const MIN_CLOUD_REFRESH_INTERVAL_S = 60;
+// cacheDuration: how often status is refreshed. The cloud has a higher minimum, because each refresh is one Daikin API request.
+const DEFAULT_CACHE_DURATION_S = 60;
+const MIN_LOCAL_CACHE_DURATION_S = 15;
+const MIN_CLOUD_CACHE_DURATION_S = 60;
 // The spec's example port, used when it isn't configured and there's no local IP to read it from.
 const DEFAULT_PORT = '30050';
 // Settings that only matter for control. If any is set while control is off, the log says which ones are missing.
@@ -55,8 +55,8 @@ class Client {
   readonly cloudEnabled: boolean;
   // True when the cloud login and the Terminal ID are configured, so the purifier can be controlled.
   readonly controlEnabled: boolean;
-  // How often status is refreshed, in milliseconds. Also how long a read is cached.
-  readonly refreshInterval: number;
+  // cacheDuration in milliseconds: how long a read is cached, and how often status is refreshed.
+  readonly cacheDuration: number;
 
   private config: AccessoryConfig;
   private log: Logging;
@@ -109,7 +109,7 @@ class Client {
     const missing = this.missingControlSettings();
     this.cloudEnabled = !missing.some((key) => key !== 'terminalId');
     this.controlEnabled = missing.length === 0;
-    this.refreshInterval = this.getRefreshInterval();
+    this.cacheDuration = this.getCacheDuration();
 
     if (this.cloudEnabled) {
       this.ensureAuthenticated();
@@ -133,15 +133,15 @@ class Client {
   }
 
   /**
-   * `refreshInterval` in seconds (`cacheDuration` is the old name and still works), at least 15 seconds, or 60 when
-   * status comes from the Daikin cloud, so polling alone can't get the account rate-limited.
+   * `cacheDuration` in seconds: at least 15 seconds, or 60 when status comes from the Daikin cloud, so polling alone
+   * can't get the account rate-limited.
    */
-  private getRefreshInterval(): number {
-    const minimum = this.cloudEnabled ? MIN_CLOUD_REFRESH_INTERVAL_S : MIN_LOCAL_REFRESH_INTERVAL_S;
-    const requested = Number(this.config.refreshInterval ?? this.config.cacheDuration) || DEFAULT_REFRESH_INTERVAL_S;
+  private getCacheDuration(): number {
+    const minimum = this.cloudEnabled ? MIN_CLOUD_CACHE_DURATION_S : MIN_LOCAL_CACHE_DURATION_S;
+    const requested = Number(this.config.cacheDuration) || DEFAULT_CACHE_DURATION_S;
     if (requested < minimum) {
       this.log.warn(
-        `Refresh interval ${requested}s is below the minimum of ${minimum}s${this.cloudEnabled ? ' for the Daikin cloud' : ''}; ` +
+        `Cache duration ${requested}s is below the minimum of ${minimum}s${this.cloudEnabled ? ' for the Daikin cloud' : ''}; ` +
         `using ${minimum}s. Refreshing too often can get the Daikin account rate-limited.`,
       );
     }
@@ -189,7 +189,7 @@ class Client {
    * Calls that arrive while a fetch is running share it, so HomeKit asking for 20 values at once makes one request.
    */
   async getUnitInfo(force = false): Promise<UnitInfo> {
-    if (!force && Date.now() - this.unitInfoFetchedAt < this.refreshInterval) {
+    if (!force && Date.now() - this.unitInfoFetchedAt < this.cacheDuration) {
       return this.unitInfo;
     }
     if (!this.unitInfoRequest) {

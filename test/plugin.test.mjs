@@ -83,16 +83,8 @@ describe('plugin', () => {
     assert.equal(server.count(UNIT), 2);
   });
 
-  test('polls once per refreshInterval, which takes precedence over cacheDuration', async () => {
-    const { server } = await startAccessory({ ...LOCAL_CONFIG, refreshInterval: 20, cacheDuration: 90 });
-    const before = server.count(UNIT);
-    mock.timers.tick(20_000);
-    await settle();
-    assert.equal(server.count(UNIT), before + 1);
-  });
-
   test('polls the Daikin cloud no more often than every 60 seconds', async () => {
-    const { server } = await startAccessory({ ...PASSWORD_CONFIG, refreshInterval: 15 });
+    const { server } = await startAccessory({ ...PASSWORD_CONFIG, cacheDuration: 15 });
     const before = server.count(CLOUD_UNIT);
     mock.timers.tick(59_999);
     await settle();

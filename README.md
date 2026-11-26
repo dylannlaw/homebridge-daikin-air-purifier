@@ -30,7 +30,7 @@ Local IP only (sensors and status, no account):
     "accessory": "DaikinAirPurifier",
     "name": "DaikinAirPurifier",
     "host": "192.168.1.1",
-    "refreshInterval": 60
+    "cacheDuration": 60
 }
 ```
 
@@ -44,14 +44,14 @@ Daikin cloud, with control (`host` is optional and only used as a fallback):
     "clientSecret": "captured once from the app",
     "terminalId": "captured once from the app",
     "host": "192.168.1.1",
-    "refreshInterval": 300
+    "cacheDuration": 300
 }
 ```
 
 | Setting | Needed for | Description |
 |---|---|---|
 | `host` | Required without an account; otherwise an optional fallback | The purifier's local IP address. Give it a fixed IP in your router so it doesn't change. |
-| `refreshInterval` | Optional (default 60) | How often, in seconds, status is fetched. See [Refresh interval and rate limits](#refresh-interval-and-rate-limits). The older name `cacheDuration` still works. |
+| `cacheDuration` | Optional (default 60) | How often, in seconds, status is fetched. See [Cache duration and rate limits](#cache-duration-and-rate-limits). |
 | `username`, `password` | **Cloud status and control** | The email and password you sign in to the [Daikin Smart App](https://apps.apple.com/app/id564109247) with. |
 | `clientSecret` | **Cloud status and control** | The `client_secret` in the body of the app's `https://prod-dsioti.daikinsmartdb.jp/dsioti/oauth2/token` request. |
 | `terminalId` | **Control** | The `terminalid` query parameter of the app's `https://api.daikinsmartdb.jp/cleaner/set_control_info` request, sent when you change a setting in the app. Cloud status works without it. |
@@ -61,7 +61,7 @@ Daikin cloud, with control (`host` is optional and only used as a fallback):
 
 If some of these are filled in but not all, the log names the missing settings, for example `Control is off because these settings are missing: terminalId.`
 
-### Refresh interval and rate limits
+### Cache duration and rate limits
 Every refresh is one request: to the Daikin cloud when your account is set, otherwise to the purifier on your network. HomeKit reads in between are answered from the last result.
 
 - **Local IP:** minimum 15 seconds. The purifier is on your network, so there's no account limit, but very frequent polling can still make the purifier slow to respond.
@@ -104,7 +104,7 @@ Leave these empty unless you need them:
 An unofficial OpenAPI description of the Daikin Smart API, reverse-engineered from the app's traffic, is in [`docs/reference/daikin-smart-api.openapi.yaml`](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/docs/reference/daikin-smart-api.openapi.yaml). [This note](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/docs/research/2026-11-26-openapi-conformance.md) explains how each of the plugin's API calls follows it, and what is still unverified.
 
 ### How API calls are kept low
-- Status is read once per `refreshInterval` (from the cloud at most once a minute), and that one result is shared by every HomeKit request.
+- Status is read once per `cacheDuration` (from the cloud at most once a minute), and that one result is shared by every HomeKit request.
 - The device credentials (`userinfo`) are fetched once and saved, and the port is read from the purifier once per restart, not on every change.
 - Apart from status refreshes, the Daikin cloud API is called only when you change a setting. Changes made within 1 second of each other (for example, dragging the fan speed slider) are sent as one request.
 - If the API responds with HTTP 429, the plugin stops calling it for 5 minutes.

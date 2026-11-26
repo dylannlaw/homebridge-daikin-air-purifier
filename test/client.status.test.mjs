@@ -79,7 +79,7 @@ describe('status from the Daikin cloud', () => {
     assert.equal(server.last(CLOUD_UNIT).params.terminalid, undefined);
   });
 
-  test('is cached for the refresh interval, so HomeKit reads make one request', async () => {
+  test('is cached for cacheDuration, so HomeKit reads make one request', async () => {
     const { client, server } = await start(PASSWORD_CONFIG);
     await Promise.all([client.getUnitInfo(), client.getUnitInfo(), client.getUnitInfo()]);
     await client.getUnitInfo();
@@ -223,44 +223,38 @@ describe('what to read status from', () => {
   });
 });
 
-describe('refresh interval', () => {
-  const interval = (config) => makeClient(config, tempStorage());
+describe('cache duration', () => {
+  const cacheDuration = (config) => makeClient(config, tempStorage());
 
   test('defaults to 60 seconds', () => {
     mockServers();
-    assert.equal(interval(LOCAL_CONFIG).client.refreshInterval, 60_000);
+    assert.equal(cacheDuration(LOCAL_CONFIG).client.cacheDuration, 60_000);
   });
 
-  test('uses refreshInterval, in seconds', () => {
+  test('uses cacheDuration, in seconds', () => {
     mockServers();
-    assert.equal(interval({ ...LOCAL_CONFIG, refreshInterval: 120 }).client.refreshInterval, 120_000);
-  });
-
-  test('still accepts the old cacheDuration setting, with refreshInterval winning when both are set', () => {
-    mockServers();
-    assert.equal(interval({ ...LOCAL_CONFIG, cacheDuration: 45 }).client.refreshInterval, 45_000);
-    assert.equal(interval({ ...LOCAL_CONFIG, cacheDuration: 45, refreshInterval: 90 }).client.refreshInterval, 90_000);
+    assert.equal(cacheDuration({ ...LOCAL_CONFIG, cacheDuration: 120 }).client.cacheDuration, 120_000);
   });
 
   test('is at least 15 seconds for the local IP, with a warning about rate limits', () => {
     mockServers();
-    const { client, log } = interval({ ...LOCAL_CONFIG, refreshInterval: 5 });
-    assert.equal(client.refreshInterval, 15_000);
+    const { client, log } = cacheDuration({ ...LOCAL_CONFIG, cacheDuration: 5 });
+    assert.equal(client.cacheDuration, 15_000);
     assert.ok(log.has('warn', 'below the minimum of 15s'));
     assert.ok(log.has('warn', 'rate-limited'));
   });
 
   test('is at least 60 seconds when status comes from the Daikin cloud, with a warning about rate limits', () => {
     mockServers();
-    const { client, log } = interval({ ...PASSWORD_CONFIG, refreshInterval: 20 });
-    assert.equal(client.refreshInterval, 60_000);
+    const { client, log } = cacheDuration({ ...PASSWORD_CONFIG, cacheDuration: 20 });
+    assert.equal(client.cacheDuration, 60_000);
     assert.ok(log.has('warn', 'below the minimum of 60s for the Daikin cloud'));
     assert.ok(log.has('warn', 'rate-limited'));
   });
 
   test('does not warn at or above the minimum', () => {
     mockServers();
-    const { log } = interval({ ...PASSWORD_CONFIG, refreshInterval: 300 });
+    const { log } = cacheDuration({ ...PASSWORD_CONFIG, cacheDuration: 300 });
     assert.ok(!log.has('warn', 'below the minimum'));
   });
 });

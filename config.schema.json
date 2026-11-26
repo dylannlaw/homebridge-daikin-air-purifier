@@ -24,12 +24,13 @@
         "placeholder": "192.168.1.1",
         "description": "Optional when your Daikin account is set below: status is then read from the Daikin cloud, and this IP is the fallback. Required for read-only use without an account."
       },
-      "refreshInterval": {
-        "title": "Refresh Interval (seconds)",
+      "cacheDuration": {
+        "title": "Cache Duration (seconds)",
+        "description": "How often status is fetched. Minimum 15 seconds from the local IP, 60 from the Daikin cloud. Each refresh is one request; refreshing too often can get your Daikin account rate-limited (the plugin then pauses cloud requests for 5 minutes).",
         "type": "integer",
+        "required": true,
         "default": 60,
-        "minimum": 15,
-        "description": "How often status is fetched. Minimum 15 seconds from the local IP, 60 from the Daikin cloud. Each refresh is one request; refreshing too often can get your Daikin account rate-limited (the plugin then pauses cloud requests for 5 minutes)."
+        "minimum": 15
       },
       "username": {
         "title": "Daikin Account Email",
@@ -89,11 +90,6 @@
         "title": "Serial",
         "type": "string",
         "placeholder": "123-456-789"
-      },
-      "cacheDuration": {
-        "title": "Cache Duration (deprecated)",
-        "type": "integer",
-        "description": "Old name for Refresh Interval. Still read when Refresh Interval is empty."
       }
     }
   },
@@ -101,7 +97,7 @@
     "name",
     "accessory",
     "host",
-    "refreshInterval",
+    "cacheDuration",
     {
       "type": "fieldset",
       "title": "Daikin cloud (status and control from HomeKit)",
@@ -123,8 +119,7 @@
         "clientId",
         "uuid",
         "code",
-        "refreshToken",
-        "cacheDuration"
+        "refreshToken"
       ]
     },
     {
