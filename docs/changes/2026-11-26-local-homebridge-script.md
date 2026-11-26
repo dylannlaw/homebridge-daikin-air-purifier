@@ -31,7 +31,7 @@ No dependency is added to the plugin: Homebridge and Config UI X are installed o
 - `scripts/local-homebridge.sh`: the script (`start`, `reset`, `clean`, `help`).
 - `package.json`: `homebridge:local` script.
 - `.gitignore`, `.npmignore`: ignore `.homebridge-local/`; don't publish `scripts/`.
-- `README.md`: "Testing a development build on your iPhone".
+- `README.md`: "Testing locally with your iPhone", a step-by-step guide: what you need, getting the code, starting, configuring in the web UI, pairing with the Home app, testing a change, cleaning up and troubleshooting.
 - `AGENTS.md`: the real-device check points to the script.
 
 ## Docs updated
