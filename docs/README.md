@@ -12,6 +12,7 @@ Living files, written before a larger change is built.
 
 One per non-trivial change, newest first.
 
+- [2026-11-26 TypeScript 7 side by side](changes/2026-11-26-typescript-7-side-by-side.md)
 - [2026-11-26 Adopt the docs-first workflow](changes/2026-11-26-adopt-docs-first-workflow.md)
 
 ## Research
