@@ -22,6 +22,7 @@ Living files, written before a larger change is built.
 
 One per non-trivial change, newest first.
 
+- [2026-11-27 Add a contributing guide](changes/2026-11-27-contributing-guide.md)
 - [2026-11-26 Read status from the local IP first, with the cloud as fallback](changes/2026-11-26-local-status-first.md)
 - [2026-11-26 Answer HomeKit reads from the cache, never waiting on the network](changes/2026-11-26-fast-homekit-reads.md)
 - [2026-11-26 Keep the version in package.json and CHANGELOG.md in step with npm](changes/2026-11-26-version-in-repo.md)

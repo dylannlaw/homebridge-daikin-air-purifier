@@ -202,6 +202,6 @@ A value below the minimum is raised to it, with a warning in the log.
 
 ## Contributing and releases
 
-Ideas and fixes are welcome. [Contributing](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/AGENTS.md) explains the workflow, checks and docs every change follows.
+Ideas and fixes are welcome. The [contributing guide](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/CONTRIBUTING.md) shows how to help, even without writing code.
 
 Every change to the plugin is released to npm as soon as it is merged. See the [CHANGELOG](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/CHANGELOG.md) or [Releases](https://github.com/dylannlaw/homebridge-daikin-air-purifier/releases) for what changed in each version.
