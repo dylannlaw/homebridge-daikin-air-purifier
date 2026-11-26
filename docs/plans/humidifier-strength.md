@@ -10,10 +10,10 @@ Users can set how strongly the purifier humidifies (Low, Standard or High) from 
 
 | Option | Why / why not |
 |---|---|
-| `RotationSpeed` on the humidifier, in three bands (picked) | A standard optional characteristic of HomeKit's HumidifierDehumidifier service, shown as a slider. It works with Siri ("set the humidifier to 100%") and in scenes, and it matches how the fan speed slider already works. |
+| `RelativeHumidityHumidifierThreshold` ("Humidify to") in three steps, 40, 50 and 60% (picked, see the addition below) | The only humidifier slider the Home app shows, on the main tile. Daikin takes a strength, not a target, so the percentages are labels for the three steps. |
+| `RotationSpeed` on the humidifier, in three bands (built first, kept) | A standard optional characteristic of the HumidifierDehumidifier service. It works in Eve and with Siri percentages, but **the Home app doesn't show it on a humidifier**, which was found when testing on an iPhone. |
 | Keep the setter on `WaterLevel` (today's code) | Doesn't work. `WaterLevel` is read-only in HomeKit, so the Home app never shows a control and `setWaterLevel` never runs. It also sent only `humd` and dropped `pow`, `mode` and `airvol`. Removed. |
-| `RelativeHumidityHumidifierThreshold` (target humidity %) | Daikin takes fixed strength levels, not a target humidity, so the number shown would mean nothing. |
-| Three switches, like the mode switches | Possible, but it adds three more tiles for something a slider already does. Rejected for now. |
+| Three switches, like the mode switches | Clear labels, but three more tiles. Rejected in favour of the target humidity slider. |
 | Restrict the slider to three steps (for example `maxValue 3`) | The Home app still shows it as a percentage, so 1, 2 and 3 would read as 1%, 2% and 3%. Rejected. |
 
 ## Design
@@ -31,6 +31,23 @@ The humidifier service gets `RotationSpeed`, set with `client.bindSet()` so it's
 | (read only) | `4` (VeryHigh, used by Smart mode) | 100% |
 
 `4` isn't offered as a setting. The plugin only sends it with Smart mode (HomeKit's Auto), and whether it's a fourth strength or Daikin's "auto humidity" isn't known.
+
+### Addition: the target humidity slider
+
+Found when testing on an iPhone: the bridge advertises `RotationSpeed` on the humidifier, but the Home app doesn't draw it. The Home app's humidifier tile shows power, Auto/Humidifier and a "Humidify to" slider (`RelativeHumidityHumidifierThreshold`). So strength is also set with that slider. This reverses the earlier rejection of the target humidity option, for this reason.
+
+| "Humidify to" | `humd` sent | Shows after reading back |
+|---|---|---|
+| 40% (below 45) | `1` (Low) | 40% |
+| 50% (45 to 54) | `2` (Standard) | 50% |
+| 60% (55 or more) | `3` (High) | 60% |
+| (read only) | `4` (VeryHigh) | 60% |
+| (read only) | `0` (off) | 50%, the strength that turning on sets |
+
+- The slider is limited to 40–60% in steps of 10, so it has exactly three positions.
+- The percentages are labels, not a measured target. Whether they're close to the humidity Daikin aims for at each strength hasn't been checked against the manual.
+- Humidifying is turned off with the tile's power button, as the slider has no off position.
+- `RotationSpeed` stays for Eve and Siri, and both sliders send a strength the same way.
 
 ### Sending a change
 

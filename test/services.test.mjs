@@ -219,6 +219,33 @@ describe('Humidifier tile', () => {
     });
   }
 
+  test('the target humidity slider has three steps: 40, 50 and 60%', () => {
+    const props = make(Humidifier).service.getService().getCharacteristic(C.RelativeHumidityHumidifierThreshold).props;
+    assert.equal(props.minValue, 40);
+    assert.equal(props.maxValue, 60);
+    assert.equal(props.minStep, 10);
+  });
+
+  for (const [target, humd] of [[40, '1'], [44, '1'], [45, '2'], [50, '2'], [54, '2'], [55, '3'], [60, '3']]) {
+    test(`setting the target humidity to ${target}% sets humidity ${humd}, turning the power on`, async () => {
+      const { client, service } = make(Humidifier, { airPurifier: { pow: '0', mode: '2', airvol: '1', humd: '0' } });
+      await service.setTargetHumidity(target);
+      assert.deepEqual(lastSet(client), { mode: '2', airvol: '1', pow: '1', humd });
+    });
+  }
+
+  for (const [humd, expected] of [['1', 40], ['2', 50], ['3', 60], ['4', 60], ['0', 50]]) {
+    test(`humidity ${humd} shows the target humidity at ${expected}%`, async () => {
+      assert.equal(await make(Humidifier, { airPurifier: { humd } }).service.getTargetHumidity(), expected);
+    });
+  }
+
+  test('the target humidity slider calls the set handler', async () => {
+    const { client, service } = make(Humidifier);
+    await service.getService().getCharacteristic(C.RelativeHumidityHumidifierThreshold).handleSetRequest(60);
+    assert.equal(lastSet(client).humd, '3');
+  });
+
   test('the strength slider calls the set handler', async () => {
     const { client, service } = make(Humidifier);
     await service.getService().getCharacteristic(C.RotationSpeed).handleSetRequest(50);
@@ -234,6 +261,7 @@ describe('Humidifier tile', () => {
     assert.equal(s.getCharacteristic(C.TargetHumidifierDehumidifierState).value, C.TargetHumidifierDehumidifierState.HUMIDIFIER);
     assert.equal(s.getCharacteristic(C.WaterLevel).value, 1);
     assert.equal(s.getCharacteristic(C.RotationSpeed).value, 66);
+    assert.equal(s.getCharacteristic(C.RelativeHumidityHumidifierThreshold).value, 50);
   });
 });
 
@@ -406,6 +434,7 @@ describe('local-only mode in the tiles', () => {
       purifier.getCharacteristic(C.Active), purifier.getCharacteristic(C.TargetAirPurifierState), purifier.getCharacteristic(C.RotationSpeed),
       humidifier.getCharacteristic(C.Active), humidifier.getCharacteristic(C.TargetHumidifierDehumidifierState),
       humidifier.getCharacteristic(C.RotationSpeed),
+      humidifier.getCharacteristic(C.RelativeHumidityHumidifierThreshold),
     ];
     for (const c of controls) {
       assert.deepEqual(c.props.perms, [hap.Perms.PAIRED_READ, hap.Perms.NOTIFY], c.displayName);
