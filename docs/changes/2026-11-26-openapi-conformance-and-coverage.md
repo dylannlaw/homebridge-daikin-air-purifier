@@ -29,12 +29,12 @@ A new capture of the Daikin Smart App's traffic (November 2026) was written up a
 - `src/client.ts`: `unref()` the token-renewal timer.
 - `package.json`, `package-lock.json`: `yaml` dev dependency, `test:coverage` writes lcov, `--test-force-exit` removed.
 - `.github/workflows/build.yml`: Codecov upload step.
-- `README.md`: Codecov badge.
+- `README.md`: Codecov badge and "API reference" section.
 - `docs/README.md`: index entries.
 
 ## Docs updated
 
-`README.md` (coverage badge). Users see no other change, so the configuration sections are unchanged. `config.schema.json` is unchanged.
+`README.md`: a coverage badge, and an "API reference" section linking the spec and the research note. The configuration sections are unchanged. `config.schema.json` is unchanged.
 
 ## Verified / not verified
 
