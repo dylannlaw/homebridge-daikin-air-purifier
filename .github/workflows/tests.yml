@@ -58,3 +58,14 @@ jobs:
 
       - name: Build and test
         run: npm run test:coverage
+
+      # One upload is enough: the other Node.js versions run the same tests. Pull requests from forks
+      # can't read CODECOV_TOKEN, so a failed upload doesn't fail the build. Not run when another
+      # workflow calls this one (release.yml), so a release never depends on Codecov.
+      - name: Upload coverage to Codecov
+        if: matrix.node-version == '24.x' && github.workflow == 'Tests'
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          files: coverage/lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
