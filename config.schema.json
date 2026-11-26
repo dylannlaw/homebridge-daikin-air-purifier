@@ -58,7 +58,7 @@
       "port": {
         "title": "Port",
         "type": "string",
-        "description": "Cloud mode only, optional; not used in local mode. Leave empty to read it from the purifier (port= at http://<purifier IP>/common/basic_info), or 30050 when there's no local IP.",
+        "description": "Optional. The purifier's port. Leave empty to read it from the purifier at the local IP (port= at http://<purifier IP>/common/basic_info), or 30050 when there's no local IP. It's sent with cloud control requests.",
         "placeholder": "30050"
       },
       "clientId": {
@@ -99,21 +99,21 @@
     "cacheDuration",
     {
       "type": "fieldset",
-      "title": "Local mode (status only, no control)",
-      "description": "Set only the purifier's local IP and leave Cloud mode empty. Status is read from the purifier on your network; it can't be controlled from HomeKit. In cloud mode this IP is optional and used as a fallback.",
-      "items": [
-        "host"
-      ]
-    },
-    {
-      "type": "fieldset",
-      "title": "Cloud mode (status and control from HomeKit)",
-      "description": "To control the purifier from HomeKit, all four are required: Email, Password, Client Secret and Terminal ID. With only Email, Password and Client Secret, status is read from the Daikin cloud but the purifier is read-only in HomeKit. For local mode, leave this whole section empty.",
+      "title": "Cloud mode, recommended (status and control from HomeKit)",
+      "description": "To control the purifier from HomeKit, all four are required: Email, Password, Client Secret and Terminal ID. With only Email, Password and Client Secret, status is read from the Daikin cloud but the purifier is read-only in HomeKit. For local mode, leave this whole section empty and use Local mode below.",
       "items": [
         "username",
         "password",
         "clientSecret",
-        "terminalId",
+        "terminalId"
+      ]
+    },
+    {
+      "type": "fieldset",
+      "title": "Local mode (status only, no control)",
+      "description": "For local mode, set only the purifier's local IP and leave Cloud mode above empty. Status is read from the purifier on your network; it can't be controlled from HomeKit. In cloud mode the local IP is optional and used as a fallback.",
+      "items": [
+        "host",
         "port"
       ]
     },
