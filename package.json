@@ -28,6 +28,7 @@
   "keywords": [
     "homebridge",
     "homebridge-plugin",
+    "supports-hap",
     "homekit",
     "daikin",
     "air purifier",
