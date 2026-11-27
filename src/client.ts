@@ -2,7 +2,7 @@ import axios, { AxiosError } from 'axios';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import type { AccessoryConfig, Characteristic, CharacteristicSetHandler, HAP, Logging } from 'homebridge';
+import type { PlatformConfig, Characteristic, CharacteristicSetHandler, HAP, Logging } from 'homebridge';
 import { DustLevel, FanSpeed, HumidityLevel, Mode, OdorLevel, PM2Level, PowerStatus } from './constant.js';
 import type { AirPurifier, ControlInfo, SensorInfo, TokenResponse, UnitInfoResponse, UnitStatus, UserInfo } from './types.js';
 
@@ -58,7 +58,7 @@ class Client {
   // cacheDuration in milliseconds: how long a read is cached, and how often status is refreshed.
   readonly cacheDuration: number;
 
-  private config: AccessoryConfig;
+  private config: PlatformConfig;
   private log: Logging;
   private hap: HAP;
   private tokenFile: string;
@@ -91,7 +91,7 @@ class Client {
   // When the cloud was last asked for status as the fallback for a failed local read, to limit it to the cloud minimum.
   private cloudFallbackAt = 0;
 
-  constructor(log: Logging, config: AccessoryConfig, storagePath: string, hap: HAP) {
+  constructor(log: Logging, config: PlatformConfig, storagePath: string, hap: HAP) {
     this.config = config;
     this.log = log;
     this.hap = hap;

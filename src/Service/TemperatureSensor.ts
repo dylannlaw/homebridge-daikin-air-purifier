@@ -1,5 +1,6 @@
-import type { AccessoryConfig, API, HAP, Logging, Service } from 'homebridge';
+import type { API, HAP, Logging, PlatformAccessory, PlatformConfig, Service } from 'homebridge';
 import Client from '../client.js';
+import { serviceFor } from './serviceFor.js';
 import { PowerStatus } from '../constant.js';
 
 class TemperatureSensor {
@@ -7,8 +8,8 @@ class TemperatureSensor {
   private client: Client;
   private api: API;
 
-  constructor(client: Client, hap: HAP, log: Logging, config: AccessoryConfig, api: API) {
-    this.temperatureSensor = new hap.Service.TemperatureSensor();
+  constructor(client: Client, hap: HAP, log: Logging, config: PlatformConfig, api: API, accessory?: PlatformAccessory) {
+    this.temperatureSensor = serviceFor(accessory, hap.Service.TemperatureSensor);
     this.client = client;
     this.api = api;
 

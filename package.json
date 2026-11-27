@@ -2,7 +2,7 @@
   "displayName": "Homebridge Daikin Air Purifier",
   "name": "@dylannlaw/homebridge-daikin-air-purifier",
   "type": "module",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Homebridge plugin for Daikin Air Purifier",
   "license": "Apache-2.0",
   "repository": {
@@ -29,6 +29,7 @@
   "keywords": [
     "homebridge",
     "homebridge-plugin",
+    "supports-hap",
     "homekit",
     "daikin",
     "air purifier",

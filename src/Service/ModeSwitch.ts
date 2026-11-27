@@ -1,5 +1,6 @@
-import type { AccessoryConfig, API, HAP, Logging, Service } from 'homebridge';
+import type { API, HAP, Logging, PlatformAccessory, PlatformConfig, Service } from 'homebridge';
 import Client from '../client.js';
+import { serviceFor } from './serviceFor.js';
 import { FanSpeed, Mode, PowerStatus } from '../constant.js';
 import type { ModeSwitchName } from '../types.js';
 
@@ -32,14 +33,29 @@ class ModeSwitch {
   private client: Client;
   private api: API;
 
-  constructor(client: Client, hap: HAP, log: Logging, config: AccessoryConfig, api: API, purifier?: Service) {
+  constructor(
+    client: Client, hap: HAP, log: Logging, config: PlatformConfig, api: API, purifier?: Service, accessory?: PlatformAccessory,
+  ) {
     this.client = client;
     this.api = api;
 
-    for (const name of enabledModes(config.modeSwitches, log)) {
+    const enabled = enabledModes(config.modeSwitches, log);
+
+    // Switches for modes no longer in `modeSwitches` are still on the accessory restored from the cache: remove them.
+    for (const name of DEFAULT_MODES.filter((mode) => !enabled.includes(mode))) {
+      const stale = accessory?.getServiceById(hap.Service.Switch, `mode-${name}`);
+      if (stale) {
+        purifier?.removeLinkedService(stale);
+        accessory!.removeService(stale);
+      }
+    }
+
+    for (const name of enabled) {
       const { mode, label } = MODES[name];
-      const service = new hap.Service.Switch(label, `mode-${name}`);
-      service.addOptionalCharacteristic(hap.Characteristic.ConfiguredName);
+      const service = serviceFor(accessory, hap.Service.Switch, label, `mode-${name}`);
+      if (!service.testCharacteristic(hap.Characteristic.ConfiguredName)) {
+        service.addOptionalCharacteristic(hap.Characteristic.ConfiguredName);
+      }
       service.setCharacteristic(hap.Characteristic.ConfiguredName, label);
 
       client.bindSet(

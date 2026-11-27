@@ -1,18 +1,12 @@
 {
   "pluginAlias": "DaikinAirPurifier",
-  "pluginType": "accessory",
+  "pluginType": "platform",
   "singular": true,
   "schema": {
     "type": "object",
     "properties": {
       "name": {
         "title": "Name",
-        "type": "string",
-        "required": true,
-        "default": "DaikinAirPurifier"
-      },
-      "accessory": {
-        "title": "Accessory",
         "type": "string",
         "required": true,
         "default": "DaikinAirPurifier"
@@ -106,7 +100,6 @@
   },
   "layout": [
     "name",
-    "accessory",
     "cacheDuration",
     {
       "key": "modeSwitches",

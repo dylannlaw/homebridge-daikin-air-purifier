@@ -47,7 +47,7 @@ Leave these empty unless you need them:
 - `code`: a single-use authorization code captured from the app, used with `clientSecret` instead of email and password. The current app protects its codes with PKCE, so a captured code may not work without the app's code verifier.
 - `refreshToken`: a `refresh_token` captured from the app, instead of email and password.
 
-These go in the same accessory block as the other settings in your Homebridge `config.json`, or in the plugin's settings in the Homebridge UI.
+These go in the same platform block as the other settings in your Homebridge `config.json`, or in the plugin's settings in the Homebridge UI.
 
 ## API reference
 An unofficial OpenAPI description of the Daikin Smart API, reverse-engineered from the app's traffic, is in [`docs/reference/daikin-smart-api.openapi.yaml`](../reference/daikin-smart-api.openapi.yaml). [This note](../research/2026-11-26-openapi-conformance.md) explains how each of the plugin's API calls follows it, and what is still unverified.

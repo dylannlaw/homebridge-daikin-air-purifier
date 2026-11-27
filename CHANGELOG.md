@@ -4,6 +4,20 @@ All notable changes to this project are documented in this file. Every pull requ
 
 Versions 0.2.3 and 1.0.0 to 1.0.4 were never published: the patch number used to come from the release workflow's run number.
 
+## [3.0.0](https://github.com/dylannlaw/homebridge-daikin-air-purifier/compare/v2.0.0...v3.0.0) (2026-11-27)
+
+
+### BREAKING CHANGES
+
+* the plugin is now a Homebridge dynamic platform instead of an accessory plugin, as Homebridge requires for verified plugins. In your `config.json`, move the purifier's block from `accessories` to `platforms` and rename `"accessory": "DaikinAirPurifier"` to `"platform": "DaikinAirPurifier"`. Every other setting stays the same, and the saved Daikin login is kept. The Home app sees the purifier as a new accessory, so put it back in its room and redo any scenes and automations that used it
+
+
+### Features
+
+* without a local IP or a Daikin login, the plugin logs a warning and doesn't start, instead of polling nothing
+* Homebridge keeps the accessory between restarts, and mode switches you turn off in `modeSwitches` are removed from it
+* polling stops when Homebridge shuts down
+
 ## [2.0.0](https://github.com/dylannlaw/homebridge-daikin-air-purifier/compare/v1.1.0...v2.0.0) (2026-11-27)
 
 

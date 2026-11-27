@@ -95,6 +95,10 @@ You need:
 
 ## Configure it
 
+The plugin's block goes in the `platforms` list of your Homebridge `config.json` (the Homebridge UI puts it there for you). Without a local IP or a Daikin login, the plugin logs a warning and doesn't start.
+
+> **Upgrading from 2.x?** Version 3.0 is a Homebridge platform plugin instead of an accessory plugin. Move the purifier's block from `accessories` to `platforms` and rename its `"accessory"` key to `"platform"`. Every other setting stays the same. The Home app sees it as a new accessory, so put it back in its room and redo any scenes and automations.
+
 ### Cloud mode (status and control)
 
 All four of `username`, `password`, `clientSecret` and `terminalId` are required. If any one is missing, the purifier still shows in the Home app but is **read-only**: you can see its status, but not turn it on or off or change the fan speed or humidifier.
@@ -105,7 +109,7 @@ All four of `username`, `password`, `clientSecret` and `terminalId` are required
 
 ```json
 {
-    "accessory": "DaikinAirPurifier",
+    "platform": "DaikinAirPurifier",
     "name": "DaikinAirPurifier",
     "cacheDuration": 60,
     "host": "192.168.1.1",
@@ -122,7 +126,7 @@ Only `host`, the purifier's local IP, is required. Leave the Daikin account sett
 
 ```json
 {
-    "accessory": "DaikinAirPurifier",
+    "platform": "DaikinAirPurifier",
     "name": "DaikinAirPurifier",
     "cacheDuration": 60,
     "host": "192.168.1.1"

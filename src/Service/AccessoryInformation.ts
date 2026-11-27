@@ -1,4 +1,5 @@
-import type { AccessoryConfig, API, HAP, Logging, Service } from 'homebridge';
+import type { API, HAP, Logging, PlatformAccessory, PlatformConfig, Service } from 'homebridge';
+import { serviceFor } from './serviceFor.js';
 
 class AccessoryInformation {
   private information: Service;
@@ -6,8 +7,8 @@ class AccessoryInformation {
   private serial: string;
   private name: string;
 
-  constructor(hap: HAP, log: Logging, config: AccessoryConfig, api: API) {
-    this.information = new hap.Service.AccessoryInformation();
+  constructor(hap: HAP, log: Logging, config: PlatformConfig, api: API, accessory?: PlatformAccessory) {
+    this.information = serviceFor(accessory, hap.Service.AccessoryInformation);
     this.name = config.name || 'Daikin';
     this.model = config.model || 'Unknown';
     this.serial = config.serial || '123-456-789';
