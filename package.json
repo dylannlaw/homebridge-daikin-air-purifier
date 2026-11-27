@@ -48,10 +48,8 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.67.0"
   },
-  "funding": [
-    {
-      "type": "paypal",
-      "url": "https://paypal.me/dylannlaw"
-    }
-  ]
+  "funding": {
+    "type": "paypal",
+    "url": "https://paypal.me/dylannlaw"
+  }
 }
