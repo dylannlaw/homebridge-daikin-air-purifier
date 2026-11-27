@@ -23,6 +23,7 @@ Living files, written before a larger change is built.
 
 One per non-trivial change, newest first.
 
+- [2026-11-27 Pass the Homebridge verification checks](changes/2026-11-27-verification-checks.md)
 - [2026-11-27 Plugin icon](changes/2026-11-27-plugin-icon.md)
 - [2026-11-27 Become a dynamic platform, for Homebridge verification](changes/2026-11-27-dynamic-platform.md)
 - [2026-11-27 Merge Dependabot pull requests automatically once approved](changes/2026-11-27-dependabot-auto-merge.md)

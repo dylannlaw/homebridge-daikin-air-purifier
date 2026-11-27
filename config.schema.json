@@ -4,11 +4,11 @@
   "singular": true,
   "schema": {
     "type": "object",
+    "required": ["name", "cacheDuration"],
     "properties": {
       "name": {
         "title": "Name",
         "type": "string",
-        "required": true,
         "default": "DaikinAirPurifier"
       },
       "host": {
@@ -22,7 +22,6 @@
         "title": "Cache Duration (seconds)",
         "description": "How often status is fetched. Minimum 15 seconds with a local IP, 60 when status comes only from the Daikin cloud. Each refresh is one request; refreshing too often can get your Daikin account rate-limited (the plugin then pauses cloud requests for 5 minutes).",
         "type": "integer",
-        "required": true,
         "default": 60,
         "minimum": 15
       },
