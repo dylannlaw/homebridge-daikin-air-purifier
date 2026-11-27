@@ -14,10 +14,12 @@ import HumiditySensor from './Service/HumiditySensor.js';
 import TemperatureSensor from './Service/TemperatureSensor.js';
 import ModeSwitch from './Service/ModeSwitch.js';
 import Client from './client.js';
+import { warnAboutLegacyConfig } from './legacyConfig.js';
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings.js';
 
 export default (api: API) => {
   api.registerPlatform(PLATFORM_NAME, DaikinAirPurifierPlatform);
+  warnAboutLegacyConfig(api.user.configPath?.());
 };
 
 /**

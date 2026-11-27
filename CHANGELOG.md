@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file. Every pull requ
 
 Versions 0.2.3 and 1.0.0 to 1.0.4 were never published: the patch number used to come from the release workflow's run number.
 
+## [2.1.2](https://github.com/dylannlaw/homebridge-daikin-air-purifier/compare/v2.1.1...v2.1.2) (2026-11-27)
+
+
+### Bug Fixes
+
+* if your `config.json` still has the purifier under `accessories` (the format before 2.1.0), the plugin now logs how to move it to `platforms`, just before Homebridge's "No plugin was found for the accessory" error. Before, nothing said what to change
+* the PayPal donation link in `package.json` uses the `funding` format Homebridge reads, so the Homebridge UI shows it
+
 ## [2.1.1](https://github.com/dylannlaw/homebridge-daikin-air-purifier/compare/v2.1.0...v2.1.1) (2026-11-27)
 
 
