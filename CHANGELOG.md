@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file. Every pull requ
 
 Versions 0.2.3 and 1.0.0 to 1.0.4 were never published: the patch number used to come from the release workflow's run number.
 
+## [2.1.1](https://github.com/dylannlaw/homebridge-daikin-air-purifier/compare/v2.1.0...v2.1.1) (2026-11-27)
+
+
+### Bug Fixes
+
+* the plugin settings schema lists its required fields (`name`, `cacheDuration`) at the object level, as JSON Schema requires, instead of `"required": true` on each field. The Homebridge verification checks rejected the old form. Nothing changes in your settings
+* `package.json` has a `homepage` link to the README
+
 ## [2.1.0](https://github.com/dylannlaw/homebridge-daikin-air-purifier/compare/v2.0.0...v2.1.0) (2026-11-27)
 
 
