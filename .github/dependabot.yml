@@ -1,6 +1,10 @@
 # Keeps GitHub Actions (pinned in .github/workflows) and package dependencies up to date.
 # cooldown: version updates wait until a release is 7 days old, so a compromised or broken release has
 # time to be found. Security updates aren't delayed. Keep this longer than min-release-age in .npmrc.
+# groups: minor and patch updates come as one pull request per group, so there is one approval instead
+# of several, and merging one doesn't leave the others out of date. Runtime dependencies and major
+# updates stay one per pull request: each runtime bump needs its own version bump and release.
+# Every Dependabot pull request gets auto-merge turned on (dependabot-auto-merge.yml); approving it merges it.
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -9,9 +13,16 @@ updates:
       interval: monthly
     cooldown:
       default-days: 7
+    groups:
+      actions:
+        update-types: [minor, patch]
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
     cooldown:
       default-days: 7
+    groups:
+      dev-dependencies:
+        dependency-type: development
+        update-types: [minor, patch]
