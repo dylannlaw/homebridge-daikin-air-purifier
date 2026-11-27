@@ -33,7 +33,6 @@ See the [plan](../plans/dynamic-platform.md).
 - `isConfigured` is true with a local IP, an email, password and Client Secret, a code with the Client Secret, or a refresh token. These are the same ways in which the client can read status. When it is false, the platform also unregisters any cached accessory, so no "No Response" tile stays behind.
 - On `shutdown`, polling stops.
 - The config shape is unchanged apart from `accessory` → `platform`. The token file name still comes from `name`, so the saved login carries over. A `devices` list and keeping a legacy accessory registration were considered and rejected (see the plan).
-- `package.json` now has the `supports-hap` keyword, following the Homebridge transport convention.
 - `scripts/local-homebridge.sh` writes a platform block. It moves a `DaikinAirPurifier` block that an older version wrote into `accessories` over to `platforms`.
 
 ## Files
@@ -45,7 +44,7 @@ See the [plan](../plans/dynamic-platform.md).
 - `config.schema.json`: `pluginType: platform`, the `accessory` field removed.
 - `test/plugin.test.mjs`: rewritten for the platform. New tests cover registering, a stable UUID, reuse from the cache without duplicates, removed switches, stale accessories, not starting when unconfigured, `isConfigured`, and shutdown.
 - `scripts/local-homebridge.sh`: platform config, and migration of an old test config.
-- `package.json`, `package-lock.json`: 3.0.0, `supports-hap`.
+- `package.json`, `package-lock.json`: 3.0.0.
 
 ## Docs updated
 

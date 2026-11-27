@@ -1,0 +1,36 @@
+# Turns on auto-merge for every pull request Dependabot opens, so one the maintainer approves merges by
+# itself once the required checks pass. It never approves anything: the "Protect Master" ruleset still
+# needs a code-owner approval and the Test (Node.js …) checks, and auto-merge waits for both.
+# A runtime dependency bump still fails check-version.sh until a version bump commit is added
+# (AGENTS.md), so it can't merge, or release, without one.
+#
+# Needs "Allow auto-merge" on in the repository settings; without it the step fails.
+#
+# Security (the repo is public):
+# - Runs on pull_request, never pull_request_target, and only for pull requests Dependabot opened.
+#   It checks out no code and runs nothing from the pull request.
+# - Only this job gets write access, and only to pull requests and the merge.
+# - Runs triggered by Dependabot only see Dependabot secrets; this needs none.
+name: Dependabot auto-merge
+
+on:
+  pull_request:
+    types: [opened, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  auto-merge:
+    name: Enable auto-merge
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # needed to turn on auto-merge
+      pull-requests: write
+    steps:
+      - name: Enable auto-merge (squash)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: gh pr merge --auto --squash "$PR_URL"
