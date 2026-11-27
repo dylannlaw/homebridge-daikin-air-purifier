@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file. Every pull requ
 
 Versions 0.2.3 and 1.0.0 to 1.0.4 were never published: the patch number used to come from the release workflow's run number.
 
+## [2.0.0](https://github.com/dylannlaw/homebridge-daikin-air-purifier/compare/v1.1.0...v2.0.0) (2026-11-27)
+
+
+### BREAKING CHANGES
+
+* Homebridge 2.0 or later is now required. Homebridge 1.x is no longer supported: update Homebridge before updating the plugin. If you stay on 1.x, stay on version 1.1.0 of the plugin. No settings changed
+
 ## [1.1.0](https://github.com/dylannlaw/homebridge-daikin-air-purifier/compare/v1.0.6...v1.1.0) (2026-11-26)
 
 

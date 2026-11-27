@@ -1,5 +1,6 @@
-# Lints, builds and tests the plugin on every supported Node.js version, on every pull request and every
-# push to master that touches code or tests. Documentation-only changes skip it. It never publishes.
+# Lints, builds and tests the plugin on every supported Node.js version, and builds and tests it against
+# Homebridge 2.0 to 2.4 and the latest release, on every pull request and every push to master that touches code or tests.
+# Documentation-only changes skip it. It never publishes.
 # release.yml calls this same workflow before it publishes, so a release is only ever made from code
 # that passed here. Keep the two paths-ignore lists the same.
 # On pull requests it also checks the version: a change to the plugin must raise the version in
@@ -78,3 +79,46 @@ jobs:
           files: coverage/lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
+
+  homebridge:
+    name: Test (Homebridge ${{ matrix.homebridge-version }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # package.json "engines" starts at 2.0.0. Each release brings its own HAP library. "latest" is
+        # whatever npm serves as the newest release, to catch a breaking one early: it can fail without
+        # any change here, and then it blocks releases too.
+        homebridge-version: [2.0.0, 2.1.0, 2.2.0, 2.3.0, 2.4.0, latest]
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # One Node.js version that every Homebridge release above supports.
+      - name: Use Node.js 24.x
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.x
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Replaces the locked Homebridge, and its HAP library, for this run only.
+      - name: Install Homebridge ${{ matrix.homebridge-version }}
+        env:
+          HOMEBRIDGE_VERSION: ${{ matrix.homebridge-version }}
+        run: |
+          # Turns "latest" into a version number; a version number stays as it is.
+          WANTED=$(npm view "homebridge@$HOMEBRIDGE_VERSION" version)
+          npm install --no-save "homebridge@$WANTED"
+          INSTALLED=$(node -p "require('./node_modules/homebridge/package.json').version")
+          echo "Installed Homebridge $INSTALLED"
+          test "$INSTALLED" = "$WANTED"
+
+      # npm test type-checks against this version (the build), then runs the tests.
+      - name: Build and test
+        run: npm test

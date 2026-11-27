@@ -71,7 +71,7 @@
 You need:
 
 1. **A Daikin air purifier** on your Wi-Fi and set up in the [Daikin Smart App](https://apps.apple.com/app/id564109247). The plugin is built and tested with the **MCK70W** on firmware **3.17.0-g4**. To see your purifier's firmware, open the purifier in the Daikin Smart App and go to its **Model information** section.
-2. **Homebridge** 1.8 or later (or 2.x) running on Node.js 22, 24 or 26. New to Homebridge? Start with the [Homebridge install guide](https://github.com/homebridge/homebridge/wiki).
+2. **Homebridge** 2.0 or later running on Node.js 22, 24 or 26 (Node.js 26 needs Homebridge 2.3 or later). New to Homebridge? Start with the [Homebridge install guide](https://github.com/homebridge/homebridge/wiki).
 3. **Then pick what you want** (you can change it later):
 
 | You want | Mode | You'll need |
