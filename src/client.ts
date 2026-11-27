@@ -2,7 +2,7 @@ import axios, { AxiosError } from 'axios';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import type { AccessoryConfig, Characteristic, CharacteristicSetHandler, HAP, Logging } from 'homebridge';
+import type { PlatformConfig, Characteristic, CharacteristicSetHandler, HAP, Logging } from 'homebridge';
 import { DustLevel, FanSpeed, HumidityLevel, Mode, OdorLevel, PM2Level, PowerStatus } from './constant.js';
 import type { AirPurifier, ControlInfo, SensorInfo, TokenResponse, UnitInfoResponse, UnitStatus, UserInfo } from './types.js';
 
@@ -58,7 +58,7 @@ class Client {
   // cacheDuration in milliseconds: how long a read is cached, and how often status is refreshed.
   readonly cacheDuration: number;
 
-  private config: AccessoryConfig;
+  private config: PlatformConfig;
   private log: Logging;
   private hap: HAP;
   private tokenFile: string;
@@ -91,7 +91,7 @@ class Client {
   // When the cloud was last asked for status as the fallback for a failed local read, to limit it to the cloud minimum.
   private cloudFallbackAt = 0;
 
-  constructor(log: Logging, config: AccessoryConfig, storagePath: string, hap: HAP) {
+  constructor(log: Logging, config: PlatformConfig, storagePath: string, hap: HAP) {
     this.config = config;
     this.log = log;
     this.hap = hap;
@@ -116,7 +116,8 @@ class Client {
     this.cacheDuration = this.getCacheDuration();
 
     if (this.cloudEnabled) {
-      this.ensureAuthenticated();
+      // authenticate() logs its own failures; the catch only keeps an unexpected error from going unhandled.
+      this.ensureAuthenticated().catch((error) => this.log.error('Unable to log in to the Daikin API:', (error as Error).message));
     }
     if (!this.cloudEnabled && !config.host) {
       this.log.error(
@@ -707,7 +708,7 @@ class Client {
     }
     this.tokenTimer = setTimeout(() => {
       this.tokenTimer = null;
-      this.ensureAuthenticated();
+      this.ensureAuthenticated().catch((error) => this.log.error('Unable to renew the Daikin API login:', (error as Error).message));
     }, Math.max(delay, 60 * 1000));
     // Don't keep the process alive just for a renewal, so Homebridge (and the tests) can exit without waiting up to an hour.
     this.tokenTimer.unref?.();

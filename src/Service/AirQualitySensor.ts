@@ -1,14 +1,19 @@
-import type { AccessoryConfig, API, HAP, Logging, Service } from 'homebridge';
+import type { API, HAP, Logging, PlatformAccessory, PlatformConfig, Service } from 'homebridge';
 import Client from '../client.js';
+import { serviceFor } from './serviceFor.js';
+import { Reading } from './reading.js';
 import { PowerStatus } from '../constant.js';
 
 class AirQualitySensor {
   private airQualitySensor: Service;
   private client: Client;
   private api: API;
+  private pm25 = new Reading();
+  private odor = new Reading();
+  private dust = new Reading();
 
-  constructor(client: Client, hap: HAP, log: Logging, config: AccessoryConfig, api: API) {
-    this.airQualitySensor = new hap.Service.AirQualitySensor();
+  constructor(client: Client, hap: HAP, log: Logging, config: PlatformConfig, api: API, accessory?: PlatformAccessory) {
+    this.airQualitySensor = serviceFor(accessory, hap.Service.AirQualitySensor);
     this.client = client;
     this.api = api;
 
@@ -62,17 +67,17 @@ class AirQualitySensor {
 
   async getPm2_5Density() {
     const { sensorInfo } = this.client.getCachedUnitInfo();
-    return Number(sensorInfo.pm25);
+    return this.pm25.from(sensorInfo.pm25);
   }
 
   async getSulphurDioxideDensity() {
     const { sensorInfo } = this.client.getCachedUnitInfo();
-    return Number(sensorInfo.odor);
+    return this.odor.from(sensorInfo.odor);
   }
 
   async getVOCDensity() {
     const { sensorInfo } = this.client.getCachedUnitInfo();
-    return Number(sensorInfo.dust);
+    return this.dust.from(sensorInfo.dust);
   }
 
   getService() {

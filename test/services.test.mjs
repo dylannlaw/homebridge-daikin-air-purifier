@@ -263,6 +263,42 @@ describe('Humidity and Temperature Sensor tiles', () => {
     });
   }
 
+  // Daikin devices report "-" for a reading they don't have; HomeKit would warn about NaN.
+  for (const [Service, key, get, Characteristic, value] of [
+    [HumiditySensor, 'hhum', 'getCurrentRelativeHumidity', C.CurrentRelativeHumidity, 64],
+    [TemperatureSensor, 'htemp', 'getCurrentTemperature', C.CurrentTemperature, 26.5],
+  ]) {
+    test(`${Service.name} keeps the last good value when the purifier reports "-"`, async () => {
+      const { client, service } = make(Service, { sensorInfo: { [key]: String(value) } });
+      assert.equal(await service[get](), value);
+      for (const missing of ['-', '', undefined]) {
+        client.state.sensorInfo[key] = missing;
+        assert.equal(await service[get](), value);
+      }
+      await service.identify();
+      assert.equal(service.getService().getCharacteristic(Characteristic).value, value);
+    });
+  }
+
+  test('a "-" reading before any good one is reported as 0, not NaN', async () => {
+    const { service } = make(TemperatureSensor, { sensorInfo: { htemp: '-' } });
+    assert.equal(await service.getCurrentTemperature(), 0);
+  });
+
+  test('air quality densities and the water level keep their last good value too', async () => {
+    const quality = make(AirQualitySensor, { sensorInfo: { pm25: '2', odor: '3', dust: '1' } });
+    await quality.service.identify();
+    Object.assign(quality.client.state.sensorInfo, { pm25: '-', odor: '-', dust: '-' });
+    assert.equal(await quality.service.getPm2_5Density(), 2);
+    assert.equal(await quality.service.getSulphurDioxideDensity(), 3);
+    assert.equal(await quality.service.getVOCDensity(), 1);
+    assert.equal(await quality.service.getAirQuality(), C.AirQuality.UNKNOWN);
+    const humidifier = make(Humidifier, { unitStatus: { water_supply: '1' } });
+    assert.equal(await humidifier.service.getWaterLevel(), 1);
+    humidifier.client.state.unitStatus.water_supply = '-';
+    assert.equal(await humidifier.service.getWaterLevel(), 1);
+  });
+
   test('identify pushes values to HomeKit', async () => {
     const humidity = make(HumiditySensor, { sensorInfo: { hhum: '55' } }).service;
     await humidity.identify();

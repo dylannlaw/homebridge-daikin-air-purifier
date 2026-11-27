@@ -14,6 +14,7 @@ For users, linked from the main README.
 
 Living files, written before a larger change is built.
 
+- [Dynamic platform, for Homebridge verification](plans/dynamic-platform.md) (implemented)
 - [Read status from the local IP first](plans/local-status-first.md) (implemented)
 - [Switches for the purifier's Eco, Pollen and Circulator modes](plans/mode-switches.md) (implemented)
 - [Make the cloud API calls follow the OpenAPI reference](plans/align-api-with-openapi.md) (implemented)
@@ -22,6 +23,7 @@ Living files, written before a larger change is built.
 
 One per non-trivial change, newest first.
 
+- [2026-11-27 Become a dynamic platform, for Homebridge verification](changes/2026-11-27-dynamic-platform.md)
 - [2026-11-27 Merge Dependabot pull requests automatically once approved](changes/2026-11-27-dependabot-auto-merge.md)
 - [2026-11-27 Remove nodemon and `npm run watch`](changes/2026-11-27-remove-nodemon.md)
 - [2026-11-27 Wait before taking new dependency releases](changes/2026-11-27-dependency-cooldown.md)

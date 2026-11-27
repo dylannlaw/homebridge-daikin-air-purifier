@@ -86,11 +86,28 @@ build_and_install() {
     "$DEV_DIR/pack/$tarball" "homebridge@$hb_version" "$UI_PACKAGE")
 }
 
+# Plugin 3.0 is a platform: moves a DaikinAirPurifier block written by an older version of this script from
+# "accessories" to "platforms", keeping its settings.
+migrate_config() {
+  CONFIG="$CONFIG" node -e '
+    const fs = require("fs");
+    const config = JSON.parse(fs.readFileSync(process.env.CONFIG, "utf8"));
+    const old = (config.accessories || []).filter((a) => a.accessory === "DaikinAirPurifier");
+    if (!old.length) process.exit(0);
+    config.accessories = config.accessories.filter((a) => !old.includes(a));
+    config.platforms = config.platforms || [];
+    for (const { accessory, ...settings } of old) config.platforms.push({ platform: accessory, ...settings });
+    fs.writeFileSync(process.env.CONFIG, JSON.stringify(config, null, 4) + "\n", { mode: 0o600 });
+    console.log("Moved the purifier from accessories to platforms (plugin 3.0 is a platform).");
+  '
+}
+
 # Creates config.json on the first run: a test bridge with its own name, ID and PIN, the web UI,
 # and the purifier if you give its IP. Credentials are entered later in the web UI, not here.
 write_config() {
   if [ -f "$CONFIG" ]; then
     say "Using the existing config: $CONFIG"
+    migrate_config
     return
   fi
 
@@ -129,8 +146,8 @@ write_config() {
       platforms: [{ platform: "config", name: "Config", port: Number(process.env.UI_PORT) }],
     };
     if (process.env.DAIKIN_HOST) {
-      config.accessories.push({
-        accessory: "DaikinAirPurifier",
+      config.platforms.push({
+        platform: "DaikinAirPurifier",
         name: "DaikinAirPurifier",
         host: process.env.DAIKIN_HOST,
         cacheDuration: 60,
