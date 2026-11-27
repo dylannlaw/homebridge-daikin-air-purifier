@@ -1,11 +1,17 @@
 # Keeps GitHub Actions (pinned in .github/workflows) and package dependencies up to date.
+# cooldown: version updates wait until a release is 7 days old, so a compromised or broken release has
+# time to be found. Security updates aren't delayed. Keep this longer than min-release-age in .npmrc.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    cooldown:
+      default-days: 7
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
