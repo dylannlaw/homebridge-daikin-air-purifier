@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>Homebridge Daikin Air Purifier</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3FB6E8"/>
+      <stop offset="1" stop-color="#1268B3"/>
+    </linearGradient>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#E3EEF7"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background tile -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+
+  <!-- Clean air flowing out of the purifier -->
+  <g fill="none" stroke="#FFFFFF" stroke-width="22" stroke-linecap="round" opacity="0.95">
+    <path d="M104 96 H290 A28 28 0 1 0 262 68"/>
+    <path d="M164 144 H384 A26 26 0 1 0 358 118"/>
+  </g>
+
+  <!-- Purifier body -->
+  <rect x="156" y="182" width="200" height="290" rx="44" fill="url(#body)"/>
+
+  <!-- Air outlet across the top -->
+  <rect x="186" y="208" width="140" height="22" rx="11" fill="#1268B3" opacity="0.85"/>
+
+  <!-- Status light: a water drop, for the humidifier -->
+  <path d="M256 256 C256 256 232 286 232 302 A24 24 0 0 0 280 302 C280 286 256 256 256 256 Z" fill="#3FB6E8"/>
+
+  <!-- Intake grille -->
+  <g fill="#1268B3" opacity="0.35">
+    <rect x="186" y="350" width="140" height="14" rx="7"/>
+    <rect x="186" y="380" width="140" height="14" rx="7"/>
+    <rect x="186" y="410" width="140" height="14" rx="7"/>
+  </g>
+</svg>

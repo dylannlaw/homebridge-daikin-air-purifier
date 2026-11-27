@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dylannlaw/homebridge-daikin-air-purifier/master/docs/assets/icon.png" width="128" height="128" alt="Homebridge Daikin Air Purifier icon">
+</p>
+
 <h1 align="center">Homebridge Daikin Air Purifier</h1>
 
 <p align="center">

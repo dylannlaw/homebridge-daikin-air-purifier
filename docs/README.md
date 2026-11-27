@@ -23,6 +23,7 @@ Living files, written before a larger change is built.
 
 One per non-trivial change, newest first.
 
+- [2026-11-27 Plugin icon](changes/2026-11-27-plugin-icon.md)
 - [2026-11-27 Become a dynamic platform, for Homebridge verification](changes/2026-11-27-dynamic-platform.md)
 - [2026-11-27 Merge Dependabot pull requests automatically once approved](changes/2026-11-27-dependabot-auto-merge.md)
 - [2026-11-27 Remove nodemon and `npm run watch`](changes/2026-11-27-remove-nodemon.md)
@@ -50,4 +51,5 @@ One per non-trivial change, newest first.
 
 ## Reference
 
+- [Plugin icon](assets/icon.svg): the source of `assets/icon.png` (512 px, used in the README) and `assets/icon-100.png` (100 px, for the Homebridge verification request).
 - [Daikin Smart API (unofficial OpenAPI 3 spec)](reference/daikin-smart-api.openapi.yaml): reverse-engineered from Daikin Smart App traffic captured in November 2026. Not affiliated with Daikin. The client's calls follow it; see the research note above.
