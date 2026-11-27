@@ -21,7 +21,7 @@ The plugin can be **Verified By Homebridge**. The [verification requirements](ht
 - Each service class takes the `PlatformAccessory` and reuses its existing service (`getService` / `getServiceById` for the mode switches) before adding one. Mode switches that were turned off in `modeSwitches` are removed from the cached accessory.
 - **Not configured:** with neither a local IP (`host`) nor a Daikin login (email, password and Client Secret, a refresh token, or a captured code with the Client Secret), the platform logs one warning, creates no client, makes no network request, and unregisters any cached accessory, so no dead tile stays in the Home app.
 - On `shutdown` the polling timer is cleared.
-- Breaking change, so **3.0.0**. HomeKit sees a new accessory: users must put it back in its room and redo scenes and automations. The changelog and README say so.
+- Breaking change. Released as **2.1.0**, as the owner chose, rather than 3.0.0. HomeKit sees a new accessory: users must put it back in its room and redo scenes and automations. The changelog and README say so.
 
 ## Files expected to change
 

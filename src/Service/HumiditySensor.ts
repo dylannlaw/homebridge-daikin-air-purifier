@@ -1,12 +1,14 @@
 import type { API, HAP, Logging, PlatformAccessory, PlatformConfig, Service } from 'homebridge';
 import Client from '../client.js';
 import { serviceFor } from './serviceFor.js';
+import { Reading } from './reading.js';
 import { PowerStatus } from '../constant.js';
 
 class HumiditySensor {
   private humiditySensor: Service;
   private client: Client;
   private api: API;
+  private humidity = new Reading();
 
   constructor(client: Client, hap: HAP, log: Logging, config: PlatformConfig, api: API, accessory?: PlatformAccessory) {
     this.humiditySensor = serviceFor(accessory, hap.Service.HumiditySensor);
@@ -24,7 +26,7 @@ class HumiditySensor {
 
   async getCurrentRelativeHumidity () {
     const { sensorInfo } = this.client.getCachedUnitInfo();
-    return Number(sensorInfo.hhum);
+    return this.humidity.from(sensorInfo.hhum);
   }
 
   async getStatusActive() {

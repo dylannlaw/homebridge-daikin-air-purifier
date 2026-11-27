@@ -116,7 +116,8 @@ class Client {
     this.cacheDuration = this.getCacheDuration();
 
     if (this.cloudEnabled) {
-      this.ensureAuthenticated();
+      // authenticate() logs its own failures; the catch only keeps an unexpected error from going unhandled.
+      this.ensureAuthenticated().catch((error) => this.log.error('Unable to log in to the Daikin API:', (error as Error).message));
     }
     if (!this.cloudEnabled && !config.host) {
       this.log.error(
@@ -707,7 +708,7 @@ class Client {
     }
     this.tokenTimer = setTimeout(() => {
       this.tokenTimer = null;
-      this.ensureAuthenticated();
+      this.ensureAuthenticated().catch((error) => this.log.error('Unable to renew the Daikin API login:', (error as Error).message));
     }, Math.max(delay, 60 * 1000));
     // Don't keep the process alive just for a renewal, so Homebridge (and the tests) can exit without waiting up to an hour.
     this.tokenTimer.unref?.();

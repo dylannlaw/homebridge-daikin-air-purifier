@@ -2,7 +2,7 @@
 
 ## Summary
 
-The plugin registers a Homebridge **dynamic platform** (`api.registerPlatform`) instead of an accessory (`api.registerAccessory`). It doesn't start when nothing is configured. It is version 3.0.0, a breaking change for existing configs.
+The plugin registers a Homebridge **dynamic platform** (`api.registerPlatform`) instead of an accessory (`api.registerAccessory`). It doesn't start when nothing is configured. It also keeps the last good sensor value when the purifier reports `-`, and catches errors from background logins. It is version 2.1.0. The config change is breaking, but the owner chose to release it as a minor version rather than 3.0.0.
 
 ## Why
 
@@ -44,7 +44,11 @@ See the [plan](../plans/dynamic-platform.md).
 - `config.schema.json`: `pluginType: platform`, the `accessory` field removed.
 - `test/plugin.test.mjs`: rewritten for the platform. New tests cover registering, a stable UUID, reuse from the cache without duplicates, removed switches, stale accessories, not starting when unconfigured, `isConfigured`, and shutdown.
 - `scripts/local-homebridge.sh`: platform config, and migration of an old test config.
-- `package.json`, `package-lock.json`: 3.0.0.
+- `src/Service/reading.ts`: new, turns a sensor value into a number and keeps the last good one for `-` or empty readings. Used by the temperature, humidity, air quality densities and water level.
+- `src/client.ts`: the two background logins (at startup and on the renewal timer) get a `.catch` that logs, so an unexpected error can't become an unhandled rejection.
+- `test/services.test.mjs`: tests for `-` readings.
+- `test/client.auth.test.mjs`: tests that an unexpected error in the startup login or the scheduled renewal is logged, not left unhandled.
+- `package.json`, `package-lock.json`: 2.1.0.
 
 ## Docs updated
 
@@ -52,15 +56,17 @@ See the [plan](../plans/dynamic-platform.md).
 
 ## Verified / not verified
 
-- ✅ `npm run lint && npm test`: 251 tests pass.
+- ✅ `npm run lint && npm test`: 259 tests pass. `npm run test:coverage` leaves no changed line or branch uncovered (the Codecov patch target is 99.59%).
 - ✅ Real Homebridge 2.5.0 (HAP 2.3.0) on Node 26 with a scratch storage dir and an unreachable test IP (192.0.2.1):
   - Unconfigured, it logged `Not configured, so not starting` and made no requests.
   - With `host`, it registered one accessory with 9 services under `@dylannlaw/homebridge-daikin-air-purifier` / `DaikinAirPurifier`.
   - On restart, it restored the accessory from the cache with no duplicate-service errors.
+- ✅ Real Homebridge 2.5.0 against a fake purifier on localhost, 40 seconds at the 15-second minimum, alternating normal readings with `-` sensor readings and the worst air-quality levels. Before the `Reading` fix, HomeKit logged NaN warnings for Current Temperature and Current Relative Humidity. After it, there were no warnings or errors.
+- ✅ Releases: every npm version since 0.2.1 has a GitHub release with notes. The earliest versions (0.0.1 to 0.2.0) came before the release workflow and have none. No dependency has an install script.
 - ❌ Not paired with the Home app or run against a real purifier in this change. `npm run homebridge:local` with the purifier would confirm the tiles and control.
-- ❌ Not checked: what the Homebridge UI does with an existing 2.x `accessories` block. The README tells users to move it by hand.
+- ❌ Not checked: what the Homebridge UI does with an existing 2.0 `accessories` block. The README tells users to move it by hand.
 
 ## Follow-ups
 
-- Open the verification request on [homebridge/plugins](https://github.com/homebridge/plugins/issues/new/choose) once 3.0.0 is on npm.
+- Open the verification request on [homebridge/plugins](https://github.com/homebridge/plugins/issues/new/choose) once 2.1.0 is on npm.
 - Optionally, a plugin icon (a square PNG of about 100 px) for the request.

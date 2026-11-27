@@ -125,6 +125,25 @@ describe('plugin', () => {
     assert.equal(server.requests.length, 0);
   });
 
+  test('does not start when Homebridge passes no config at all', async () => {
+    mock.timers.reset();
+    const { api, Platform } = fakeApi();
+    const log = makeLog();
+    new Platform(log, undefined, api);
+    api.emit('didFinishLaunching');
+    await settle();
+    assert.equal(api.registerPlatformAccessories.mock.callCount(), 0);
+    assert.ok(log.has('warn', 'Not configured, so not starting'));
+  });
+
+  test('names the accessory "Daikin Air Purifier" when no name is set', async () => {
+    const config = { ...LOCAL_CONFIG };
+    delete config.name;
+    const { accessory } = await startPlatform(config);
+    assert.equal(accessory.displayName, 'Daikin Air Purifier');
+    assert.equal(accessory.UUID, hap.uuid.generate('DaikinAirPurifier:Daikin Air Purifier'));
+  });
+
   test('isConfigured accepts a local IP or any way to log in to the Daikin cloud', () => {
     assert.equal(isConfigured({}), false);
     assert.equal(isConfigured({ username: 'u', password: 'p' }), false);

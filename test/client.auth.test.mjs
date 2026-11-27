@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import crypto from 'crypto';
 import fs from 'fs';
 import {
-  AUTH, DEVICE_ID, DEVICE_PASSWORD, LOCAL_CONFIG, LOGIN, PASSWORD_CONFIG, SET, TOKEN, USERINFO, flushSet, makeClient,
+  AUTH, Client, DEVICE_ID, DEVICE_PASSWORD, LOCAL_CONFIG, LOGIN, PASSWORD_CONFIG, SET, TOKEN, USERINFO, flushSet, makeClient,
   mockServers, readTokens, rejection, settle, tempStorage, tokenFile, writeTokens,
 } from './helpers.mjs';
 
@@ -582,5 +582,38 @@ describe('the token file', () => {
     assert.ok(log.has('warn', 'Unable to write'));
     await flushSet(mock, client.setControlInfo({ pow: '0' }));
     assert.equal(server.last(SET).authorization, 'ACCESS1');
+  });
+});
+
+describe('background logins', () => {
+  // authenticate() logs and returns false for every failure it expects. These check that anything else is still
+  // caught and logged, so it can't become an unhandled rejection that stops Homebridge.
+  test('an unexpected error in the startup login is logged, not left unhandled', async () => {
+    mockServers();
+    const original = Client.prototype.ensureAuthenticated;
+    Client.prototype.ensureAuthenticated = async () => {
+      throw new Error('unexpected');
+    };
+    try {
+      const { log } = makeClient(PASSWORD_CONFIG);
+      await settle();
+      assert.ok(log.has('error', 'Unable to log in to the Daikin API: unexpected'));
+    } finally {
+      Client.prototype.ensureAuthenticated = original;
+    }
+  });
+
+  test('an unexpected error in the scheduled renewal is logged, not left unhandled', async () => {
+    mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1_000_000 });
+    mockServers();
+    const { client, log } = makeClient(PASSWORD_CONFIG);
+    await settle();
+    client.ensureAuthenticated = async () => {
+      throw new Error('unexpected');
+    };
+    client.scheduleTokenRefresh(0);
+    mock.timers.tick(60_000);
+    await settle();
+    assert.ok(log.has('error', 'Unable to renew the Daikin API login: unexpected'));
   });
 });
