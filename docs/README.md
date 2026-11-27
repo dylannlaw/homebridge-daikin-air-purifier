@@ -22,6 +22,7 @@ Living files, written before a larger change is built.
 
 One per non-trivial change, newest first.
 
+- [2026-11-27 Require Homebridge 2.0 and test 2.0 to 2.4 and latest](changes/2026-11-27-require-homebridge-2.md)
 - [2026-11-27 Add a contributing guide](changes/2026-11-27-contributing-guide.md)
 - [2026-11-26 Read status from the local IP first, with the cloud as fallback](changes/2026-11-26-local-status-first.md)
 - [2026-11-26 Answer HomeKit reads from the cache, never waiting on the network](changes/2026-11-26-fast-homekit-reads.md)
