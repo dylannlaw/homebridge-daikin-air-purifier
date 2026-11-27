@@ -55,14 +55,6 @@ You should now see the air purifier, humidifier and the temperature, humidity an
 
 Edit the code, press Ctrl+C in the terminal and run `npm run homebridge:local` again. It rebuilds and reinstalls the plugin. Your settings and the pairing with your iPhone are kept, so there's no need to add it again.
 
-To skip the restart by hand, start it in watch mode instead:
-
-```sh
-npm run homebridge:local -- watch
-```
-
-Each time you save a file in `src/`, `config.schema.json` or `package.json`, it rebuilds, packs and reinstalls the plugin, then restarts Homebridge (usually within a few seconds). The web UI restarts too, so refresh the browser tab. If the build fails, the error is shown and Homebridge stays stopped until you save a fix. Press Ctrl+C to stop.
-
 Don't install or update this plugin from the web UI's **Plugins** page: that replaces your local build with the version on npm.
 
 ## Cleaning up
