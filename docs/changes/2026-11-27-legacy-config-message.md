@@ -1,5 +1,7 @@
 # Explain how to migrate an old accessory config
 
+> Partly superseded by [Log the old-config warning through the Homebridge logger](2026-11-29-legacy-warning-logger.md): how the message is logged.
+
 ## Summary
 
 When Homebridge's `config.json` still has the purifier under `accessories` (`"accessory": "DaikinAirPurifier"`, the format before 2.1.0), the plugin logs the steps to move it to `platforms` as soon as it is loaded. The release also carries the `funding` change already on `master` (an object, the form Homebridge shows as a donation link). Version 2.1.2.

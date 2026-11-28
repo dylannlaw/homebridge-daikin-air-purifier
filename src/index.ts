@@ -46,6 +46,8 @@ class DaikinAirPurifierPlatform implements DynamicPlatformPlugin {
     this.config = config ?? {};
     this.api = api;
 
+    warnAboutLegacyConfig(api.user.configPath?.(), (message) => log.warn(message));
+
     api.on('didFinishLaunching', () => this.start());
     api.on('shutdown', () => this.purifier?.stop());
   }

@@ -20,7 +20,6 @@ function writeConfig(config) {
 describe('legacyConfigMessage', () => {
   test('explains how to move the purifier from accessories to platforms', () => {
     const message = legacyConfigMessage({ accessories: [OLD_BLOCK], platforms: [{ platform: 'config' }] });
-    assert.match(message, /^\[DaikinAirPurifier\] /);
     assert.match(message, /move the whole block from "accessories" into "platforms"/);
     assert.match(message, /rename "accessory" to "platform"/);
     assert.match(message, /#configure-it/);
@@ -69,22 +68,44 @@ describe('warnAboutLegacyConfig', () => {
   });
 });
 
-describe('plugin initializer', () => {
-  test('checks the config.json Homebridge uses when the plugin is loaded', () => {
-    const errors = mock.method(globalThis.console, 'error', () => {});
+describe('plugin startup', () => {
+  /** Loads the plugin as Homebridge does, and creates the platform if config.json has a block for it. */
+  function start(config) {
+    const warnings = mock.method(globalThis.console, 'warn', () => {});
+    const log = { warn: mock.fn() };
     try {
-      const configPath = writeConfig({ accessories: [OLD_BLOCK] });
+      const configPath = writeConfig(config);
       const api = Object.assign(new EventEmitter(), {
         hap,
         user: { storagePath: () => tempStorage(), configPath: () => configPath },
         registerPlatform: mock.fn(),
       });
       plugin(api);
-      assert.equal(api.registerPlatform.mock.callCount(), 1);
-      assert.equal(errors.mock.callCount(), 1);
-      assert.match(errors.mock.calls[0].arguments[0], /^\[DaikinAirPurifier\] .*"accessories"/);
+      const [, Platform] = api.registerPlatform.mock.calls[0].arguments;
+      for (const block of config.platforms ?? []) {
+        new Platform(log, block, api);
+      }
+      const messages = (calls) => calls.map((call) => call.arguments[0]);
+      return { console: messages(warnings.mock.calls), log: messages(log.warn.mock.calls) };
     } finally {
-      errors.mock.restore();
+      warnings.mock.restore();
     }
+  }
+
+  test('with only the old block, warns on the console with the plugin\'s prefix', () => {
+    const result = start({ accessories: [OLD_BLOCK] });
+    assert.equal(result.console.length, 1);
+    assert.match(result.console[0], /^\[DaikinAirPurifier\] .*move the whole block/);
+  });
+
+  test('with the platform block too, warns once through the Homebridge logger', () => {
+    const result = start({ accessories: [OLD_BLOCK], platforms: [NEW_BLOCK] });
+    assert.deepEqual(result.console, []);
+    assert.equal(result.log.length, 1);
+    assert.match(result.log[0], /^Your config\.json .*Delete the old block/);
+  });
+
+  test('warns about nothing for a config in the platform format', () => {
+    assert.deepEqual(start({ platforms: [NEW_BLOCK] }), { console: [], log: [] });
   });
 });

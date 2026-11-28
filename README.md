@@ -105,7 +105,7 @@ You need:
 
 The plugin's block goes in the `platforms` list of your Homebridge `config.json` (the Homebridge UI puts it there for you). Without a local IP or a Daikin login, the plugin logs a warning and doesn't start.
 
-> **Upgrading from 2.0 or earlier?** Version 2.1 is a Homebridge platform plugin instead of an accessory plugin. Move the purifier's block from `accessories` to `platforms` and rename its `"accessory"` key to `"platform"`. Every other setting stays the same. The Home app sees it as a new accessory, so put it back in its room and redo any scenes and automations. If you skip this, Homebridge logs `No plugin was found for the accessory "DaikinAirPurifier"`, and the plugin logs these same steps just before it.
+> **Upgrading from 2.0 or earlier?** Version 2.1 is a Homebridge platform plugin instead of an accessory plugin. Move the purifier's block from `accessories` to `platforms` and rename its `"accessory"` key to `"platform"`. Every other setting stays the same. The Home app sees it as a new accessory, so put it back in its room and redo any scenes and automations. If you skip this, Homebridge logs `No plugin was found for the accessory "DaikinAirPurifier"`, and the plugin logs these same steps just before it. If you have both blocks, the plugin warns you to delete the old one.
 
 ### Cloud mode (status and control)
 
