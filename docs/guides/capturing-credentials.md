@@ -4,6 +4,8 @@
 
 Cloud status needs `clientSecret`. Control needs `clientSecret` and `terminalId`. Daikin doesn't publish either value, so you have to read them once from the Daikin Smart App's own traffic. This guide shows how to do that with [mitmproxy](https://mitmproxy.org) on a Mac or Linux computer and an iPhone.
 
+> **Before you start.** This guide inspects the Daikin Smart App's own traffic. Daikin hasn't approved this, and it may go against the terms you accepted for the Daikin Smart App and CLUB DAIKIN. You can read the app's licence agreement (利用許諾書) in the app's settings. Whether you do this is up to you, and so is the risk to your Daikin account. See the [Disclaimer](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/README.md#disclaimer) in the README. If you only need status, [local mode](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/README.md#local-mode-status-only) needs none of this.
+
 > **This may not work with the current app.** Since the Daikin Smart App was updated (version 10.x, November 2026), people haven't been able to capture these values:
 >
 > - The app is built with Flutter, and **it ignores the iPhone's Wi-Fi proxy setting**. A packet capture showed the app connecting straight to `*.daikinsmartdb.jp` while a proxy was set, so ordinary proxy mode sees nothing from it.
