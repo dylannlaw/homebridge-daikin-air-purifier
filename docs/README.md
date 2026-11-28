@@ -23,6 +23,7 @@ Living files, written before a larger change is built.
 
 One per non-trivial change, newest first.
 
+- [2026-11-29 Log the old-config warning through the Homebridge logger](changes/2026-11-29-legacy-warning-logger.md)
 - [2026-11-28 Say the plugin is unofficial, and what cloud mode risks](changes/2026-11-28-unofficial-disclaimer.md)
 - [2026-11-27 Explain how to migrate an old accessory config](changes/2026-11-27-legacy-config-message.md)
 - [2026-11-27 Pass the Homebridge verification checks](changes/2026-11-27-verification-checks.md)

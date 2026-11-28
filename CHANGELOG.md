@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file. Every pull requ
 
 Versions 0.2.3 and 1.0.0 to 1.0.4 were never published: the patch number used to come from the release workflow's run number.
 
+## [2.1.4](https://github.com/dylannlaw/homebridge-daikin-air-purifier/compare/v2.1.3...v2.1.4) (2026-11-29)
+
+
+### Bug Fixes
+
+* if your `config.json` has both the `platforms` block and a leftover `accessories` block, the warning to delete the old one now comes through the Homebridge logger, with the rest of the plugin's lines. With only the old block, Homebridge gives the plugin no logger, so that message still goes to the console, now as a warning instead of an error
+
 ## [2.1.3](https://github.com/dylannlaw/homebridge-daikin-air-purifier/compare/v2.1.2...v2.1.3) (2026-11-29)
 
 
