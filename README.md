@@ -23,6 +23,8 @@
   <img width="1429" height="194" alt="Screenshot 2026-11-26 at 23 53 02" src="https://github.com/user-attachments/assets/998c3d44-1d60-43a0-afa8-b808c69ceadc" />
 </p>
 
+> **Unofficial.** This is a community project. It isn't made, endorsed or supported by Daikin, and cloud mode uses the Daikin Smart App's service in a way Daikin hasn't approved. Read the [Disclaimer](#disclaimer) before you use cloud mode.
+
 ## Contents
 
 - [What it can do](#what-it-can-do)
@@ -32,6 +34,7 @@
 - [Using it in the Home app](#using-it-in-the-home-app)
 - [Limitations](#limitations)
 - [Good to know](#good-to-know)
+- [Disclaimer](#disclaimer)
 - [More documentation](#more-documentation)
 - [Contributing and releases](#contributing-and-releases)
 
@@ -108,7 +111,7 @@ The plugin's block goes in the `platforms` list of your Homebridge `config.json`
 All four of `username`, `password`, `clientSecret` and `terminalId` are required. If any one is missing, the purifier still shows in the Home app but is **read-only**: you can see its status, but not turn it on or off or change the fan speed or humidifier.
 
 1. Enter the **email** and **password** you sign in to the Daikin Smart App with.
-2. Capture `clientSecret` and `terminalId` once from the app's traffic: [Capturing credentials with mitmproxy](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/docs/guides/capturing-credentials.md) shows how. After that, the plugin logs in by itself.
+2. Capture `clientSecret` and `terminalId` once from the app's traffic: [Capturing credentials with mitmproxy](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/docs/guides/capturing-credentials.md) shows how. After that, the plugin logs in by itself. Daikin hasn't approved this. Read the [Disclaimer](#disclaimer) first.
 3. **Recommended: add `host`, the purifier's local IP.** Status is then read straight from the purifier on your network, which answers in well under a second. Without it, every status read goes through the Daikin cloud, which waits for the purifier to check in and can take several seconds or time out. The cloud is still used for control (current firmware has no local control) and as the fallback when the purifier can't be reached locally. Give the purifier a fixed IP in your router so it doesn't change.
 
 ```json
@@ -197,6 +200,15 @@ A value below the minimum is raised to it, with a warning in the log.
 - Your Daikin email, password, `clientSecret` and `terminalId` stay in your Homebridge config and are never written to the log.
 - Status comes from `https://api.daikinsmartdb.jp`, the same Daikin service the app uses. Without an account, nothing leaves your network.
 - Found a security problem? Please report it privately, as described in the [Security policy](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/SECURITY.md).
+
+## Disclaimer
+
+- **Not affiliated with Daikin.** This plugin is an independent community project. It isn't made, endorsed, supported or reviewed by Daikin Industries, Ltd. "Daikin" and Daikin product names are trademarks of their owner. This README uses them only to say which purifiers the plugin works with.
+- **Cloud mode uses an unofficial API.** Daikin doesn't publish an API for the Daikin Smart App. Cloud mode talks to the service the app uses, in the same way the app does, with `clientSecret` and `terminalId` values you capture from the app yourself. Daikin hasn't approved this, and it may go against the terms you accepted for the Daikin Smart App and CLUB DAIKIN. Read those terms before you turn cloud mode on. You'll find the app's licence agreement (利用許諾書) in the app's settings.
+- **Your Daikin account is at your own risk.** Daikin can change or block this API at any time, and may limit, suspend or close an account it sees used this way. The plugin keeps cloud requests low (see [rate limits](#how-often-it-checks-and-rate-limits)), but it can't guarantee your account won't be affected.
+- **Local mode doesn't use Daikin's cloud.** It reads status only from the purifier on your own network, and needs no Daikin account. If you'd rather not use Daikin's service this way, use local mode, which is read-only.
+- **No warranty.** The plugin is provided "as is", without warranties or conditions of any kind, under the [Apache License 2.0](https://github.com/dylannlaw/homebridge-daikin-air-purifier/blob/master/LICENSE). The authors aren't liable for any damage, loss or account action that comes from using it (see sections 7 and 8 of the licence).
+- **From Daikin?** If you'd like something changed or removed, please [open an issue](https://github.com/dylannlaw/homebridge-daikin-air-purifier/issues) and we'll respond.
 
 ## More documentation
 
