@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file. Every pull requ
 
 Versions 0.2.3 and 1.0.0 to 1.0.4 were never published: the patch number used to come from the release workflow's run number.
 
+## [2.1.3](https://github.com/dylannlaw/homebridge-daikin-air-purifier/compare/v2.1.2...v2.1.3) (2026-11-29)
+
+
+### Documentation
+
+* the plugin is now [Verified by Homebridge](https://github.com/homebridge/homebridge/wiki/Verified-Plugins), and the README shows the badge. The plugin itself is unchanged; this release puts the new README on npm
+
 ## [2.1.2](https://github.com/dylannlaw/homebridge-daikin-air-purifier/compare/v2.1.1...v2.1.2) (2026-11-27)
 
 
